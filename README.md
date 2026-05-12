@@ -72,18 +72,29 @@ python3 -c "import bcrypt; print(bcrypt.hashpw(b'TWOJE_HASLO', bcrypt.gensalt(12
 ## Uruchomienie lokalne (bez Docker)
 
 ```bash
-cd app
+# Utwórz venv w katalogu projektu
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
 
-# Ustaw zmienne środowiskowe (lub utwórz .env w katalogu app/)
-export SECRET_KEY=...
-export LOGIN_USERNAME=...
-export LOGIN_PASSWORD_HASH=...
-export DB_HOST=...
+# Zainstaluj zależności
+pip install -r app/requirements.txt
 
+# Uzupełnij .env (skopiuj z .env.example)
+cp .env.example .env
+
+# Uruchom (musi być z katalogu app/ ze względu na relatywne ścieżki)
+cd app
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+## Testy
+
+```bash
+# Zainstaluj zależności testowe (raz)
+pip install -r requirements-test.txt
+
+# Uruchom testy (nie wymaga połączenia z bazą danych)
+python -m pytest
 ```
 
 ## Bezpieczeństwo
@@ -106,17 +117,17 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ```
 default-src 'self';
-script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net;
+script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net;
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
 font-src 'self' https://fonts.gstatic.com;
 img-src 'self' https://cdn.kamilkowalczyk.pl data:;
-connect-src 'self';
+connect-src 'self' https://cdn.jsdelivr.net;
 frame-ancestors 'none';
 base-uri 'self';
 form-action 'self';
 ```
 
-> `unsafe-inline` dla skryptów jest wymagane przez Alpine.js (`x-data`, `@click`) i inline handlery HTMX. Pozostałe dyrektywy (`form-action`, `frame-ancestors`, `base-uri`) pozostają restrykcyjne.
+> `unsafe-inline` i `unsafe-eval` są wymagane przez Alpine.js (ewaluacja wyrażeń `x-data`, `@click` itp.). XSS jest blokowany po stronie serwera przez Jinja2 autoescape. `cdn.jsdelivr.net` w `connect-src` jest potrzebne dla source map Chart.js pobieranych przez devtools.
 
 ### Hasła
 
@@ -134,23 +145,33 @@ Hasła przechowywane są wyłącznie jako hash bcrypt w zmiennej środowiskowej 
 ```
 fastapi-urlopy/
 ├── .env.example
+├── .gitignore
 ├── docker-compose.yml
-└── app/
-    ├── main.py              # Logika aplikacji i routing
-    ├── requirements.txt
-    ├── Dockerfile
-    ├── static/
-    │   ├── css/style.css    # Material Design 3 dark theme
-    │   ├── fonts/           # Czcionka Gotham
-    │   ├── js/app.js        # Alpine.js + HTMX + Chart.js helpers
-    │   └── logo.svg
-    └── templates/
-        ├── base.html        # Layout z sidebarem, topbarem i modalem
-        ├── dashboard.html
-        ├── calendar.html
-        ├── history.html
-        ├── settings.html
-        └── login.html
+├── pytest.ini
+├── requirements-test.txt
+├── app/
+│   ├── main.py              # Logika aplikacji i routing
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   ├── static/
+│   │   ├── css/style.css    # Material Design 3 dark theme
+│   │   ├── fonts/           # Czcionka Gotham
+│   │   ├── js/app.js        # Alpine.js + HTMX + Chart.js helpers
+│   │   └── logo.svg
+│   └── templates/
+│       ├── base.html        # Layout z sidebarem, topbarem i modalem
+│       ├── dashboard.html
+│       ├── calendar.html
+│       ├── history.html
+│       ├── settings.html
+│       └── login.html
+└── tests/
+    ├── conftest.py          # Fixtures i mockowanie bazy danych
+    ├── test_auth.py         # Logowanie, rate limiting, wylogowanie
+    ├── test_pages.py        # Renderowanie stron, guard autoryzacji
+    ├── test_crud.py         # Wpisy, konfiguracja, nadgodziny, CSV
+    ├── test_business_logic.py  # Czyste funkcje (fmt_days, easter, itp.)
+    └── test_security.py     # Nagłówki bezpieczeństwa, CSP
 ```
 
 ## Endpointy API
