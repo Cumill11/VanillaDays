@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Kalendarz – {{ month_name }} {{ year }}{% endblock %}
+{% block page_title %}Kalendarz{% endblock %}
+
+{% block content %}
+<div class="card cal-card" x-data="calendarPage()">
+
+  <!-- Month navigation -->
+  <div class="cal-nav">
+    <a href="/calendar?year={{ prev_year }}&month={{ prev_month }}" class="icon-btn">
+      <span class="material-symbols-rounded">chevron_left</span>
+    </a>
+    <h2 class="cal-month-title">{{ month_name }} {{ year }}</h2>
+    <a href="/calendar?year={{ next_year }}&month={{ next_month }}" class="icon-btn">
+      <span class="material-symbols-rounded">chevron_right</span>
+    </a>
+    <a href="/calendar?year={{ today.year }}&month={{ today.month }}" class="icon-btn" title="Dzisiaj">
+      <span class="material-symbols-rounded">today</span>
+    </a>
+  </div>
+
+  <!-- Weekday headers -->
+  <div class="cal-grid">
+    {% for d in ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nie'] %}
+    <div class="cal-weekday {% if loop.index > 5 %}cal-weekday--weekend{% endif %}">{{ d }}</div>
+    {% endfor %}
+
+    <!-- Day cells -->
+    {% for day in days %}
+    {% set date_str = day.isoformat() %}
+    {% set day_entries = entries_by_date.get(date_str, []) %}
+    {% set vac  = day_entries | selectattr('type', 'eq', 'vacation') | list %}
+    {% set ho   = day_entries | selectattr('type', 'eq', 'home_office') | list %}
+    {% set okol = day_entries | selectattr('type', 'eq', 'okolicznosciowy') | list %}
+    {% set bezp = day_entries | selectattr('type', 'eq', 'bezplatny') | list %}
+    {% set l4   = day_entries | selectattr('type', 'eq', 'l4') | list %}
+    {% set in_month = day.month == month %}
+    {% set is_today = day == today %}
+    {% set is_holiday = date_str in holidays %}
+    {% set is_weekend = day.weekday() >= 5 %}
+    {% set za   = day_entries | selectattr('type', 'eq', 'za_swieto') | list %}
+    {% set primary_type = 'vacation' if vac else ('ho' if ho else ('okol' if okol else ('bezp' if bezp else ('l4' if l4 else ('za_swieto' if za else ''))))) %}
+
+    <div class="cal-day
+      {% if not in_month %} cal-day--out{% endif %}
+      {% if is_today %} cal-day--today{% endif %}
+      {% if is_holiday %} cal-day--holiday{% endif %}
+      {% if is_weekend %} cal-day--weekend{% endif %}
+      {% if primary_type %} cal-day--{{ primary_type }}{% endif %}"
+      data-date="{{ date_str }}"
+      data-in-month="{{ 'true' if in_month else 'false' }}"
+      data-has-entries="{{ 'true' if day_entries else 'false' }}"
+      @click="handleDayClick($el)">
+
+      <span class="cal-day-num">{{ day.day }}</span>
+
+      {% if is_holiday %}
+      <span class="cal-holiday-label" title="{{ holidays[date_str] }}">{{ holidays[date_str] }}</span>
+      {% endif %}
+
+      <div class="cal-chips">
+        {% if vac %}{% set v = vac[0] %}
+        <span class="cal-chip cal-chip--vacation"
+              onclick="event.stopPropagation(); confirmDelete({{ v.id }}, '{{ date_str }}')"
+              title="Urlop">
+          <span class="material-symbols-rounded" style="font-size:0.65rem">beach_access</span>URL
+        </span>{% endif %}
+        {% if ho %}{% set h = ho[0] %}
+        <span class="cal-chip cal-chip--ho"
+              onclick="event.stopPropagation(); confirmDelete({{ h.id }}, '{{ date_str }}')"
+              title="Home Office">
+          <span class="material-symbols-rounded" style="font-size:0.65rem">home</span>HO
+        </span>{% endif %}
+        {% if okol %}{% set o = okol[0] %}
+        <span class="cal-chip cal-chip--okol"
+              onclick="event.stopPropagation(); confirmDelete({{ o.id }}, '{{ date_str }}')"
+              title="Urlop okolicznościowy">
+          <span class="material-symbols-rounded" style="font-size:0.65rem">celebration</span>Okol.
+        </span>{% endif %}
+        {% if bezp %}{% set b = bezp[0] %}
+        <span class="cal-chip cal-chip--bezp"
+              onclick="event.stopPropagation(); confirmDelete({{ b.id }}, '{{ date_str }}')"
+              title="Urlop bezpłatny">
+          <span class="material-symbols-rounded" style="font-size:0.65rem">money_off</span>Bezpł.
+        </span>{% endif %}
+        {% if l4 %}{% set s = l4[0] %}
+        <span class="cal-chip cal-chip--l4"
+              onclick="event.stopPropagation(); confirmDelete({{ s.id }}, '{{ date_str }}')"
+              title="L4">
+          <span class="material-symbols-rounded" style="font-size:0.65rem">medical_services</span>L4
+        </span>{% endif %}
+        {% if za %}{% set z = za[0] %}
+        <span class="cal-chip cal-chip--za_swieto"
+              onclick="event.stopPropagation(); confirmDelete({{ z.id }}, '{{ date_str }}')"
+              title="Urlop za święto">
+          <span class="material-symbols-rounded" style="font-size:0.65rem">event_repeat</span>Za św.
+        </span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Legend -->
+  <div class="cal-legend">
+    <span class="legend-item"><span class="legend-dot legend-dot--vacation"></span> Urlop</span>
+    <span class="legend-item"><span class="legend-dot legend-dot--ho"></span> HO</span>
+    <span class="legend-item"><span class="legend-dot legend-dot--okol"></span> Okolicznościowy</span>
+    <span class="legend-item"><span class="legend-dot legend-dot--bezp"></span> Bezpłatny</span>
+    <span class="legend-item"><span class="legend-dot legend-dot--l4"></span> L4</span>
+    <span class="legend-item"><span class="legend-dot legend-dot--today"></span> Dzisiaj</span>
+    <span class="legend-item">
+      <span class="legend-dot" style="background:rgba(230,199,122,.2);border:1px solid var(--warning)"></span> Święto
+    </span>
+    <span class="legend-item"><span class="legend-dot legend-dot--za"></span> Za święto</span>
+    <span class="legend-hint">Kliknij wolny dzień = dodaj &nbsp;·&nbsp; kliknij wpis = usuń</span>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}VanillaDays{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="https://cdn.kamilkowalczyk.pl/static/images/favicon/favicon.svg">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body x-data="shell()" x-cloak>
+
+  <div class="layout">
+
+    <!-- ── Sidebar ── -->
+    <nav class="sidebar">
+      <div class="sidebar-brand">
+        <img src="/static/logo.svg" alt="VanillaDays" class="brand-logo">
+        <span class="brand-text">VanillaDays</span>
+      </div>
+
+      <ul class="nav-list">
+        {% set nav = [
+          ('dashboard', 'dashboard', 'Pulpit',     '/?year=' ~ year),
+          ('calendar',  'calendar_month', 'Kalendarz', '/calendar?year=' ~ year ~ '&month=' ~ today.month),
+          ('history',   'history',  'Historia',   '/history?year=' ~ year),
+          ('settings',  'settings', 'Ustawienia', '/settings?year=' ~ year),
+        ] %}
+        {% for id, icon, label, href in nav %}
+        <li>
+          <a href="{{ href }}" class="nav-item {% if active == id %}active{% endif %}">
+            <span class="material-symbols-rounded">{{ icon }}</span>
+            <span>{{ label }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </nav>
+
+    <!-- ── Topbar ── -->
+    <header class="topbar">
+      <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+      <div class="topbar-end">
+        <select class="year-select" onchange="changeYear(this.value)">
+          {% for y in year_options %}
+          <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+        <form method="post" action="/logout" style="margin:0">
+          <button type="submit" class="icon-btn" title="Wyloguj się">
+            <span class="material-symbols-rounded">logout</span>
+          </button>
+        </form>
+      </div>
+    </header>
+
+    <!-- ── Main content ── -->
+    <main class="main-content">
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- ── Bottom nav (mobile) ── -->
+    <nav class="bottom-nav">
+      {% for id, icon, label, href in nav %}
+      <a href="{{ href }}" class="bottom-nav-item {% if active == id %}active{% endif %}">
+        <span class="material-symbols-rounded">{{ icon }}</span>
+        <span>{{ label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+
+    <!-- ── Modal ── -->
+    <div class="modal-backdrop" x-show="modalOpen" x-transition:enter="transition-fade-in"
+         x-transition:leave="transition-fade-out" @click.self="modalOpen = false" style="display:none">
+      <div class="modal" @click.stop x-show="modalOpen" x-transition:enter="transition-modal-in"
+           x-transition:leave="transition-modal-out">
+
+        <div class="modal-header">
+          <h2 x-text="editId ? 'Edytuj wpis' : 'Dodaj wpis'"></h2>
+          <button class="icon-btn" @click="modalOpen = false">
+            <span class="material-symbols-rounded">close</span>
+          </button>
+        </div>
+
+        <form hx-post="/entries/save" hx-swap="none"
+              @htmx:before-request="formLoading = true"
+              @htmx:after-request="onFormResponse($event)">
+          <input type="hidden" name="id" :value="editId || ''">
+
+          <!-- Type toggle -->
+          <div class="toggle-group toggle-group--6">
+            <button type="button" class="toggle-btn" :class="{ active: entryType==='vacation' }"
+                    @click="entryType='vacation'">
+              <span class="material-symbols-rounded">beach_access</span> Urlop
+            </button>
+            <button type="button" class="toggle-btn" :class="{ active: entryType==='home_office' }"
+                    @click="entryType='home_office'">
+              <span class="material-symbols-rounded">home</span> Home Office
+            </button>
+            <button type="button" class="toggle-btn" :class="{ active: entryType==='okolicznosciowy' }"
+                    @click="entryType='okolicznosciowy'">
+              <span class="material-symbols-rounded">celebration</span> Okolicznościowy
+            </button>
+            <button type="button" class="toggle-btn" :class="{ active: entryType==='bezplatny' }"
+                    @click="entryType='bezplatny'">
+              <span class="material-symbols-rounded">money_off</span> Bezpłatny
+            </button>
+            <button type="button" class="toggle-btn" :class="{ active: entryType==='l4' }"
+                    @click="entryType='l4'">
+              <span class="material-symbols-rounded">medical_services</span> L4
+            </button>
+            <button type="button" class="toggle-btn" :class="{ active: entryType==='za_swieto' }"
+                    @click="entryType='za_swieto'">
+              <span class="material-symbols-rounded">event_repeat</span> Za święto
+            </button>
+          </div>
+          <input type="hidden" name="type" :value="entryType">
+
+          <!-- Date -->
+          <div class="field">
+            <label class="field-label">Data</label>
+            <input type="date" name="date" class="field-input" :value="entryDate" required>
+          </div>
+
+          <!-- Okolicznościowy: reason -->
+          <div x-show="entryType==='okolicznosciowy'" class="field">
+            <label class="field-label">Powód urlopu okolicznościowego</label>
+            <select name="okol_reason" class="field-input" x-model="okolReason">
+              <option value="">— wybierz powód (opcjonalnie) —</option>
+              <option value="Ślub własny (2 dni)">Ślub własny</option>
+              <option value="Ślub dziecka (1 dzień)">Ślub dziecka</option>
+              <option value="Urodzenie dziecka (2 dni)">Urodzenie dziecka</option>
+              <option value="Zgon i pogrzeb małżonka/dziecka/rodzica (2 dni)">Zgon małżonka / dziecka / rodzica</option>
+              <option value="Zgon i pogrzeb brata/siostry/teścia (1 dzień)">Zgon brata / siostry / teścia</option>
+              <option value="Zgon i pogrzeb babci/dziadka (1 dzień)">Zgon babci / dziadka</option>
+              <option value="Inne">Inne</option>
+            </select>
+          </div>
+
+          <!-- L4: ZUS number -->
+          <div x-show="entryType==='l4'" class="field">
+            <label class="field-label">Numer serii ZUS <span class="field-optional">(opcjonalnie)</span></label>
+            <input type="text" name="l4_number" class="field-input" x-model="l4Number"
+                   placeholder="np. ZLA/2025/XXXXX">
+          </div>
+
+          <!-- Za święto: which holiday -->
+          <div x-show="entryType==='za_swieto'" class="field">
+            <label class="field-label">Za które święto <span class="field-optional">(opcjonalnie)</span></label>
+            <input type="text" name="za_swieto_day" class="field-input" x-model="zaSwietoDay"
+                   placeholder="np. Boże Narodzenie 25.12">
+          </div>
+
+          <!-- Notes -->
+          <div class="field">
+            <label class="field-label">Notatka <span class="field-optional">(opcjonalnie)</span></label>
+            <textarea name="notes" class="field-input" rows="2" maxlength="500"
+                      x-model="entryNotes"
+                      :placeholder="notesPlaceholder()"></textarea>
+          </div>
+
+          <div x-show="formError" class="form-error" x-text="formError"></div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-text" @click="modalOpen = false">Anuluj</button>
+            <button type="submit" class="btn btn-filled" :disabled="formLoading">
+              <span x-show="formLoading" class="btn-spinner"></span>
+              <span x-text="editId ? 'Zapisz' : 'Dodaj'"></span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+
+  </div><!-- .layout -->
+
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

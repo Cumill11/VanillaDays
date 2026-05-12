@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Ustawienia – {{ year }}{% endblock %}
+{% block page_title %}Ustawienia {{ year }}{% endblock %}
+
+{% block content %}
+<div style="max-width:520px">
+
+  <div class="card">
+    <div class="card-title">Limity dni</div>
+    <form hx-post="/config/{{ year }}/save"
+          hx-target="#save-feedback"
+          hx-swap="innerHTML"
+          class="settings-form">
+
+      <div class="field">
+        <label class="field-label">Limit urlopu (dni)</label>
+        <input type="number" name="vacation_limit" class="field-input"
+               value="{{ config.vacation_limit | int }}" min="0" max="100" step="1">
+        <span class="field-hint">Ustawowy limit na rok (zwykle 26 dni)</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label">
+          <span class="material-symbols-rounded" style="font-size:1rem;vertical-align:middle;color:var(--primary)">move_down</span>
+          Dni przeniesione z {{ year - 1 }}
+        </label>
+        <input type="number" name="vacation_carried_over" class="field-input"
+               value="{{ config.vacation_carried_over | int }}" min="0" max="50" step="1">
+        <span class="field-hint">Ustaw ręcznie niewykorzystane dni z poprzedniego roku</span>
+      </div>
+
+      {% set vac_total = config.vacation_limit | float + config.vacation_carried_over | float %}
+      {% if config.vacation_carried_over | float > 0 %}
+      <div class="info-box">
+        <span class="material-symbols-rounded" style="font-size:1rem">info</span>
+        Łączna pula urlopu: <strong>{{ fmt_days(vac_total) }}</strong>
+        ({{ fmt_days(config.vacation_limit | float) }} + {{ fmt_days(config.vacation_carried_over | float) }} przeniesione)
+      </div>
+      {% endif %}
+
+      <div class="field">
+        <label class="field-label">Limit Home Office (dni)</label>
+        <input type="number" name="ho_limit" class="field-input"
+               value="{{ config.ho_limit | int }}" min="0" max="260" step="1">
+        <span class="field-hint">HO nie przechodzi na kolejny rok</span>
+      </div>
+
+      <div id="save-feedback"></div>
+
+      <button type="submit" class="btn btn-filled" style="margin-top:0.5rem">
+        <span class="material-symbols-rounded" style="font-size:1.1rem">save</span>
+        Zapisz ustawienia
+      </button>
+    </form>
+  </div>
+
+
+</div>
+{% endblock %}
