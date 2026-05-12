@@ -6,6 +6,7 @@ import csv
 import io
 import json
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Optional
 
 import bcrypt
@@ -413,6 +414,8 @@ def _tojson_filter(value):
     def _default(obj):
         if isinstance(obj, date):
             return obj.isoformat()
+        if isinstance(obj, Decimal):
+            return float(obj)
         raise TypeError(f'Object of type {type(obj)} is not JSON serializable')
     # Markup prevents Jinja2 autoescape from double-encoding the JSON output
     return Markup(json.dumps(value, default=_default))

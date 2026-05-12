@@ -223,6 +223,11 @@ class TestTojsonFilter:
         result = main._tojson_filter([{'date': d}])
         assert '2025-01-01' in result
 
+    def test_serializes_decimal(self):
+        from decimal import Decimal
+        result = main._tojson_filter({'hours': Decimal('2.5')})
+        assert '2.5' in result
+
     def test_non_serializable_raises(self):
         with pytest.raises(TypeError):
             main._tojson_filter({'bad': object()})
