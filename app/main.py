@@ -13,7 +13,7 @@ import bcrypt
 import pymysql
 import pymysql.cursors
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
@@ -31,7 +31,7 @@ if not _secret:
     raise RuntimeError('SECRET_KEY is not set in environment')
 
 # Auth middleware — runs after SessionMiddleware parses the cookie
-UNPROTECTED_PATHS = {'/login', '/health'}
+UNPROTECTED_PATHS = {'/login', '/health', '/sw.js'}
 
 @app.middleware('http')
 async def require_auth(request: Request, call_next):
@@ -48,8 +48,10 @@ _CSP = (
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net; "
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
     "font-src 'self' https://fonts.gstatic.com; "
-    "img-src 'self' https://cdn.kamilkowalczyk.pl data:; "
+    "img-src 'self' data:; "
     "connect-src 'self' https://cdn.jsdelivr.net; "
+    "worker-src 'self'; "
+    "manifest-src 'self'; "
     "frame-ancestors 'none'; "
     "base-uri 'self'; "
     "form-action 'self';"
@@ -736,6 +738,15 @@ async def export_csv(request: Request, year: Optional[str] = None, type: str = '
         '﻿' + output.getvalue(),
         media_type='text/csv; charset=utf-8',
         headers={'Content-Disposition': f'attachment; filename=urlopy_{year}.csv'},
+    )
+
+
+@app.get('/sw.js')
+async def service_worker():
+    return FileResponse(
+        'static/sw.js',
+        media_type='application/javascript',
+        headers={'Service-Worker-Allowed': '/'},
     )
 
 
