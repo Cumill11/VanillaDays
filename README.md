@@ -192,3 +192,200 @@ fastapi-urlopy/
 | `POST` | `/overtime/save` | Dodaj wpis nadgodzin |
 | `POST` | `/overtime/{id}/delete` | Usuń wpis nadgodzin |
 | `GET` | `/health` | Health check (bez autoryzacji) |
+
+---
+
+# VanillaDays — FastAPI (English)
+
+A single-user leave and absence tracker built with FastAPI + Jinja2 + HTMX + Alpine.js.
+
+## Features
+
+- **Dashboard** — vacation balance, overtime and home-office summary with a monthly bar chart
+- **Calendar** — month view, add/remove entries by clicking on a day
+- **History** — filterable table (by type and month), CSV export, print view
+- **Settings** — per-year vacation and HO limits, carry-over days from the previous year
+- 6 absence types: vacation, home office, special leave, unpaid leave, sick leave (L4), holiday swap
+- Polish public holidays calculated dynamically (including moveable feasts)
+- Login rate limiting (5 attempts → 15-minute lockout per IP)
+- Material Design 3 dark theme
+
+## Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | FastAPI + Uvicorn |
+| Templates | Jinja2 (server-side rendering) |
+| Interactivity | HTMX + Alpine.js |
+| Charts | Chart.js |
+| Database | MySQL (pymysql) |
+| Sessions | Starlette SessionMiddleware (itsdangerous) |
+| Passwords | bcrypt |
+
+## Requirements
+
+- Docker + Docker Compose
+- MySQL / MariaDB database (external or in a separate container)
+
+## Quick start
+
+```bash
+# 1. Copy the example env file and fill in the values
+cp .env.example .env
+
+# 2. Start
+docker-compose up -d
+
+# 3. Open
+http://localhost:8000
+```
+
+Database tables (`year_config`, `leave_entries`, `overtime_log`) are created automatically on first start.
+
+## Environment variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DB_HOST` | MySQL server address | `db.example.com` |
+| `DB_USER` | Database user | `urlopy` |
+| `DB_PASSWORD` | Database password | |
+| `DB_NAME` | Database name | `urlopy` |
+| `SECRET_KEY` | Session signing key (min. 32 random bytes) | |
+| `LOGIN_USERNAME` | Login username | `admin` |
+| `LOGIN_PASSWORD_HASH` | bcrypt password hash | |
+| `COOKIE_SECURE` | `1` = HTTPS-only cookie | `1` |
+| `TRUSTED_PROXY` | `1` = read IP from `X-Forwarded-For` | `1` |
+
+### Generating values
+
+```bash
+# SECRET_KEY
+python3 -c "import secrets; print(secrets.token_hex(32))"
+
+# LOGIN_PASSWORD_HASH
+python3 -c "import bcrypt; print(bcrypt.hashpw(b'YOUR_PASSWORD', bcrypt.gensalt(12)).decode())"
+```
+
+## Local development (without Docker)
+
+```bash
+# Create a virtualenv at the project root
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r app/requirements.txt
+
+# Copy and fill in .env
+cp .env.example .env
+
+# Run (must be from app/ because of relative static/templates paths)
+cd app
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+## Tests
+
+```bash
+# Install test dependencies (once)
+pip install -r requirements-test.txt
+
+# Run tests (no database connection required)
+python -m pytest
+```
+
+## Security
+
+### What is protected
+
+| Threat | Mitigation |
+|--------|------------|
+| SQL injection | Parameterised queries via pymysql |
+| XSS | Jinja2 autoescape (`autoescape=True`) on all templates |
+| CSRF | `SameSite=Lax` session cookie + `form-action 'self'` in CSP |
+| Clickjacking | `frame-ancestors 'none'` in CSP + `X-Frame-Options: DENY` |
+| MIME sniffing | `X-Content-Type-Options: nosniff` |
+| Open redirect | `next=` validation — relative paths only, rejects `//` and `/\` |
+| Brute force | Rate limiting: 5 attempts → 15-min lockout per IP |
+| Session hijacking | `HttpOnly=True`, `SameSite=Lax`, optionally `Secure=True` |
+| Referrer leakage | `Referrer-Policy: strict-origin-when-cross-origin` |
+
+### Content Security Policy
+
+```
+default-src 'self';
+script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net;
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src 'self' https://fonts.gstatic.com;
+img-src 'self' https://cdn.kamilkowalczyk.pl data:;
+connect-src 'self' https://cdn.jsdelivr.net;
+frame-ancestors 'none';
+base-uri 'self';
+form-action 'self';
+```
+
+> `unsafe-inline` and `unsafe-eval` are required by Alpine.js to evaluate template expressions (`x-data`, `@click`, etc.). XSS is prevented server-side by Jinja2 autoescape. `cdn.jsdelivr.net` in `connect-src` is needed for Chart.js source maps fetched by browser devtools.
+
+### Passwords
+
+Passwords are stored exclusively as a bcrypt hash in an environment variable — never in the database. The application supports a single user.
+
+### Recommended production setup
+
+- Set `COOKIE_SECURE=1` and run behind a reverse proxy (nginx / Traefik) with TLS
+- Set `TRUSTED_PROXY=1` if the proxy sets `X-Forwarded-For`
+- Use a strong, random `SECRET_KEY` (at least 256 bits)
+- Restrict database access to the application host only
+
+## Project structure
+
+```
+fastapi-urlopy/
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+├── pytest.ini
+├── requirements-test.txt
+├── app/
+│   ├── main.py              # Application logic and routing
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   ├── static/
+│   │   ├── css/style.css    # Material Design 3 dark theme
+│   │   ├── fonts/           # Gotham font
+│   │   ├── js/app.js        # Alpine.js + HTMX + Chart.js helpers
+│   │   └── logo.svg
+│   └── templates/
+│       ├── base.html        # Layout: sidebar, topbar, modal
+│       ├── dashboard.html
+│       ├── calendar.html
+│       ├── history.html
+│       ├── settings.html
+│       └── login.html
+└── tests/
+    ├── conftest.py          # Fixtures and database mocking
+    ├── test_auth.py         # Login, rate limiting, logout
+    ├── test_pages.py        # Page rendering, auth guard
+    ├── test_crud.py         # Entries, config, overtime, CSV
+    ├── test_business_logic.py  # Pure functions (fmt_days, easter, etc.)
+    └── test_security.py     # Security headers, CSP
+```
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | Dashboard |
+| `GET` | `/calendar` | Calendar (`?year=&month=`) |
+| `GET` | `/history` | History (`?year=&type=&month=`) |
+| `GET` | `/settings` | Settings |
+| `GET` | `/export/csv` | CSV export (`?year=&type=`) |
+| `GET` | `/login` | Login form |
+| `POST` | `/login` | Authenticate |
+| `POST` | `/logout` | Log out |
+| `POST` | `/entries/save` | Add / edit an entry |
+| `POST` | `/entries/{id}/delete` | Delete an entry |
+| `POST` | `/config/{year}/save` | Save year configuration |
+| `POST` | `/overtime/save` | Add overtime entry |
+| `POST` | `/overtime/{id}/delete` | Delete overtime entry |
+| `GET` | `/health` | Health check (no auth required) |
