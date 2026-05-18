@@ -233,7 +233,7 @@ input, select, textarea { font-family: inherit; }
 .balance-card--ho       .bc-icon  { background: rgba(128,203,196,.2); color: var(--ho); }
 .balance-card--overtime .bc-icon  { background: rgba(255,167,38,.2);  color: #FFA726; }
 .chip--ot       { background: rgba(255,167,38,.15); color: #FFA726; border-color: rgba(255,167,38,.3); }
-.chip--ot-taken { background: rgba(239,154,154,.15); color: var(--l4); border-color: rgba(239,154,154,.3); }
+.chip--ot-taken { background: rgba(239,154,154,.15); color: #EF9A9A; border-color: rgba(239,154,154,.3); }
 
 .bc-remaining {
   font-size: 3rem;
@@ -418,7 +418,7 @@ input, select, textarea { font-family: inherit; }
 .cal-chip--l4       { background: rgba(239,154,154,.35); color: var(--l4); }
 .cal-chip--za_swieto { background: rgba(77,208,225,.25);  color: var(--za); }
 .cal-chip--ot-earned { background: rgba(255,167,38,.35);  color: #FFA726; }
-.cal-chip--ot-taken  { background: rgba(239,154,154,.35); color: var(--l4); }
+.cal-chip--ot-taken  { background: rgba(239,154,154,.35); color: #EF9A9A; }
 
 .cal-legend {
   display: flex;
