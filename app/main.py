@@ -498,7 +498,11 @@ async def login_post(request: Request):
         password      = form.get('password', '').encode()
         stored        = os.getenv('LOGIN_PASSWORD_HASH', '').encode()
         expected_user = os.getenv('LOGIN_USERNAME', '')
-        if stored and expected_user and username == expected_user and bcrypt.checkpw(password, stored):
+        try:
+            pw_ok = stored and expected_user and username == expected_user and bcrypt.checkpw(password, stored)
+        except ValueError:
+            pw_ok = False
+        if pw_ok:
             _clear_failures(ip)
             request.session['logged_in'] = True
             return RedirectResponse(url=_safe_next(form.get('next', '')), status_code=303)
