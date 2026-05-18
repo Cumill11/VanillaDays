@@ -54,7 +54,7 @@
 
   <!-- Overtime card -->
   <div class="balance-card balance-card--overtime"
-       x-data="{ open: false, hours: '', note: '', logDate: new Date().toISOString().slice(0,10) }">
+       x-data="{ mode: '', hours: '', note: '', logDate: new Date().toISOString().slice(0,10) }">
     <div class="bc-header">
       <span class="bc-label">NADGODZINY</span>
       <span class="material-symbols-rounded bc-icon">more_time</span>
@@ -62,27 +62,36 @@
     <div class="bc-remaining {% if balance.overtime_balance < 0 %}bc-remaining--critical{% elif balance.overtime_balance <= 4 %}bc-remaining--low{% endif %}">
       {{ balance.overtime_balance | int }}h
     </div>
-    <div class="bc-sub">nadgodzin</div>
-    <div class="bc-footer">
-      <button type="button" class="chip chip--ot" @click="open = !open">
-        <span class="material-symbols-rounded" style="font-size:0.75rem" x-text="open ? 'close' : 'add'"></span>
-        <span x-text="open ? 'anuluj' : 'dodaj wpis'"></span>
+    <div class="bc-sub">saldo nadgodzin</div>
+    <div class="bc-footer" style="gap:0.4rem">
+      <button type="button" class="chip chip--ot"
+              @click="mode = mode === 'earned' ? '' : 'earned'">
+        <span class="material-symbols-rounded" style="font-size:0.75rem"
+              x-text="mode === 'earned' ? 'close' : 'add'"></span>
+        Zarobiłem
+      </button>
+      <button type="button" class="chip chip--ot-taken"
+              @click="mode = mode === 'taken' ? '' : 'taken'">
+        <span class="material-symbols-rounded" style="font-size:0.75rem"
+              x-text="mode === 'taken' ? 'close' : 'remove'"></span>
+        Odebrałem
       </button>
     </div>
-    <div x-show="open" x-transition style="margin-top:0.75rem">
+    <div x-show="mode" x-transition style="margin-top:0.75rem">
       <form hx-post="/overtime/save" hx-swap="none"
-            @htmx:after-request="if($event.detail.successful){open=false;window.location.reload()}">
+            @htmx:after-request="if($event.detail.successful){mode='';window.location.reload()}">
+        <input type="hidden" name="type" :value="mode">
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end">
           <div class="field" style="margin:0;flex:0 0 7.5rem">
             <label class="field-label" style="font-size:0.7rem">Data</label>
             <input type="date" name="date" class="field-input field-input--sm" x-model="logDate" required>
           </div>
-          <div class="field" style="margin:0;flex:0 0 6rem">
-            <label class="field-label" style="font-size:0.7rem">Godziny (+/-)</label>
-            <input type="number" name="hours" step="0.5" class="field-input field-input--sm"
-                   placeholder="+8 lub -4" x-model="hours" required>
+          <div class="field" style="margin:0;flex:0 0 5.5rem">
+            <label class="field-label" style="font-size:0.7rem">Godziny</label>
+            <input type="number" name="hours" step="0.5" min="0.5" class="field-input field-input--sm"
+                   placeholder="np. 4" x-model="hours" required>
           </div>
-          <div class="field" style="margin:0;flex:1;min-width:8rem">
+          <div class="field" style="margin:0;flex:1;min-width:7rem">
             <label class="field-label" style="font-size:0.7rem">Notatka</label>
             <input type="text" name="notes" class="field-input field-input--sm"
                    placeholder="opcjonalnie" x-model="note">

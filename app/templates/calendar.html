@@ -29,6 +29,7 @@
     {% for day in days %}
     {% set date_str = day.isoformat() %}
     {% set day_entries = entries_by_date.get(date_str, []) %}
+    {% set ot_day = overtime_by_date.get(date_str, []) %}
     {% set vac  = day_entries | selectattr('type', 'eq', 'vacation') | list %}
     {% set ho   = day_entries | selectattr('type', 'eq', 'home_office') | list %}
     {% set okol = day_entries | selectattr('type', 'eq', 'okolicznosciowy') | list %}
@@ -95,6 +96,13 @@
               title="Urlop za święto">
           <span class="material-symbols-rounded" style="font-size:0.65rem">event_repeat</span>Za św.
         </span>{% endif %}
+        {% for ot in ot_day %}
+        <span class="cal-chip cal-chip--{{ 'ot-earned' if ot.type == 'earned' else 'ot-taken' }}"
+              onclick="event.stopPropagation(); confirmDeleteOt({{ ot.id }}, '{{ date_str }}')"
+              title="{{ '%g godz. nadgodzin' % ot.hours if ot.type == 'earned' else '%g godz. odebranych' % ot.hours }}">
+          <span class="material-symbols-rounded" style="font-size:0.65rem">{{ 'more_time' if ot.type == 'earned' else 'schedule' }}</span>{{ ('+%gh' % ot.hours) if ot.type == 'earned' else ('-%gh' % ot.hours) }}
+        </span>
+        {% endfor %}
       </div>
     </div>
     {% endfor %}
@@ -112,7 +120,18 @@
       <span class="legend-dot" style="background:rgba(230,199,122,.2);border:1px solid var(--warning)"></span> Święto
     </span>
     <span class="legend-item"><span class="legend-dot legend-dot--za"></span> Za święto</span>
+    <span class="legend-item"><span class="legend-dot" style="background:rgba(255,167,38,.35);border:1px solid rgba(255,167,38,.5)"></span> Nadgodziny</span>
+    <span class="legend-item"><span class="legend-dot" style="background:rgba(239,154,154,.35);border:1px solid rgba(239,154,154,.5)"></span> Odebrane</span>
     <span class="legend-hint">Kliknij wolny dzień = dodaj &nbsp;·&nbsp; kliknij wpis = usuń</span>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDeleteOt(id, label) {
+  if (!confirm('Usunąć wpis nadgodzin z dnia ' + label + '?')) return;
+  htmx.ajax('POST', '/overtime/' + id + '/delete', { target: 'body', swap: 'none' });
+}
+</script>
 {% endblock %}

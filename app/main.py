@@ -207,6 +207,7 @@ def init_db():
                     id INT PRIMARY KEY AUTO_INCREMENT,
                     date DATE NOT NULL,
                     hours DECIMAL(5,1) NOT NULL,
+                    type ENUM('earned','taken') NOT NULL DEFAULT 'earned',
                     notes VARCHAR(200) DEFAULT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -222,6 +223,16 @@ def init_db():
                 cur.execute("""
                     ALTER TABLE year_config
                     ADD COLUMN overtime_balance DECIMAL(6,1) NOT NULL DEFAULT 0
+                """)
+            except Exception:
+                pass
+            try:
+                cur.execute("""
+                    ALTER TABLE overtime_log
+                    ADD COLUMN type ENUM('earned','taken') NOT NULL DEFAULT 'earned'
+                """)
+                cur.execute("""
+                    UPDATE overtime_log SET type='taken', hours=ABS(hours) WHERE hours < 0
                 """)
             except Exception:
                 pass
@@ -288,9 +299,12 @@ def get_balance(year):
         'bezplatny':  {'used': bezp_used},
         'l4':         {'used': l4_used},
         'za_swieto':  {'used': za_used},
-        'overtime_balance': float(q_one(
-            "SELECT COALESCE(SUM(hours),0) AS total FROM overtime_log WHERE YEAR(date)=%s", (year,)
-        )['total']),
+        'overtime_balance': (lambda r: float(r['earned']) - float(r['taken']))(q_one("""
+            SELECT
+                COALESCE(SUM(CASE WHEN type='earned' THEN hours ELSE 0 END), 0) AS earned,
+                COALESCE(SUM(CASE WHEN type='taken'  THEN hours ELSE 0 END), 0) AS taken
+            FROM overtime_log WHERE YEAR(date)=%s
+        """, (year,))),
     }
 
 
@@ -547,20 +561,30 @@ async def calendar_page(
         key = e['date'].isoformat() if hasattr(e['date'], 'isoformat') else str(e['date'])
         entries_by_date.setdefault(key, []).append(e)
 
+    ot_list = q_all(
+        "SELECT * FROM overtime_log WHERE date >= %s AND date <= %s ORDER BY date",
+        (days[0].isoformat(), days[-1].isoformat()),
+    )
+    overtime_by_date: dict = {}
+    for ot in ot_list:
+        key = ot['date'].isoformat() if hasattr(ot['date'], 'isoformat') else str(ot['date'])
+        overtime_by_date.setdefault(key, []).append(ot)
+
     prev_m, prev_y = (month - 1, year) if month > 1 else (12, year - 1)
     next_m, next_y = (month + 1, year) if month < 12 else (1, year + 1)
 
     return templates.TemplateResponse(request, 'calendar.html', {
-        'month':           month,
-        'month_name':      MONTH_NAMES[month - 1],
-        'days':            days,
-        'entries_by_date': entries_by_date,
-        'holidays':        get_polish_holidays(year),
-        'prev_month':      prev_m,
-        'prev_year':       prev_y,
-        'next_month':      next_m,
-        'next_year':       next_y,
-        'active':          'calendar',
+        'month':            month,
+        'month_name':       MONTH_NAMES[month - 1],
+        'days':             days,
+        'entries_by_date':  entries_by_date,
+        'overtime_by_date': overtime_by_date,
+        'holidays':         get_polish_holidays(year),
+        'prev_month':       prev_m,
+        'prev_year':        prev_y,
+        'next_month':       next_m,
+        'next_year':        next_y,
+        'active':           'calendar',
         **year_context(year),
     })
 
@@ -590,8 +614,10 @@ async def history(
     if month_f:
         ot_sql += ' AND MONTH(date)=%s'; ot_params.append(int(month_f))
     ot_sql += ' ORDER BY date DESC'
-    ot_entries = q_all(ot_sql, tuple(ot_params))
-    ot_total   = sum(float(e['hours']) for e in ot_entries)
+    ot_entries  = q_all(ot_sql, tuple(ot_params))
+    ot_earned   = sum(float(e['hours']) for e in ot_entries if e.get('type') != 'taken')
+    ot_taken    = sum(float(e['hours']) for e in ot_entries if e.get('type') == 'taken')
+    ot_balance  = ot_earned - ot_taken
 
     return templates.TemplateResponse(request, 'history.html', {
         'entries':      entries,
@@ -599,7 +625,9 @@ async def history(
         'month_filter': month_f,
         'month_names':  MONTH_NAMES,
         'ot_entries':   ot_entries,
-        'ot_total':     ot_total,
+        'ot_earned':    ot_earned,
+        'ot_taken':     ot_taken,
+        'ot_balance':   ot_balance,
         'active':       'history',
         **year_context(year),
     })
@@ -685,18 +713,21 @@ async def save_overtime(request: Request):
     form      = await request.form()
     d         = form.get('date', '')
     hours_str = form.get('hours', '').strip()
+    ot_type   = form.get('type', 'earned')
     notes     = form.get('notes', '').strip() or None
     if not d or not hours_str:
         return Response('Brak danych', status_code=400)
+    if ot_type not in ('earned', 'taken'):
+        return Response('Nieprawidłowy typ', status_code=400)
     try:
         hours = float(hours_str)
     except ValueError:
         return Response('Nieprawidłowa liczba godzin', status_code=400)
-    if hours == 0:
-        return Response('Liczba godzin nie może być 0', status_code=400)
+    if hours <= 0:
+        return Response('Liczba godzin musi być większa od 0', status_code=400)
     q_exec(
-        "INSERT INTO overtime_log (date, hours, notes) VALUES (%s, %s, %s)",
-        (d, hours, notes),
+        "INSERT INTO overtime_log (date, hours, type, notes) VALUES (%s, %s, %s, %s)",
+        (d, hours, ot_type, notes),
     )
     return Response(status_code=200)
 

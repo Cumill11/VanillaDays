@@ -131,17 +131,31 @@
 
 {% if ot_entries %}
 <div class="card table-card" style="margin-top:1rem">
-  <div style="padding:1rem 1rem 0;display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
+  <div style="padding:1rem 1rem 0;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap">
     <span class="card-title" style="margin:0;padding:0">Nadgodziny</span>
-    <span class="chip chip--ot">
-      <span class="material-symbols-rounded" style="font-size:0.8rem">more_time</span>
-      Suma: {{ ot_total | int }}h
-    </span>
+    <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+      {% if ot_earned %}
+      <span class="chip chip--ot">
+        <span class="material-symbols-rounded" style="font-size:0.8rem">more_time</span>
+        +{{ ot_earned | int }}h zarobione
+      </span>
+      {% endif %}
+      {% if ot_taken %}
+      <span class="chip chip--ot-taken">
+        <span class="material-symbols-rounded" style="font-size:0.8rem">schedule</span>
+        -{{ ot_taken | int }}h odebrane
+      </span>
+      {% endif %}
+      <span class="chip {% if ot_balance >= 0 %}chip--ot{% else %}chip--bezp{% endif %}">
+        Saldo: {{ ot_balance | int }}h
+      </span>
+    </div>
   </div>
   <table class="data-table">
     <thead>
       <tr>
         <th>Data</th>
+        <th>Typ</th>
         <th>Godziny</th>
         <th class="hide-mobile">Notatka</th>
         <th style="text-align:right">Akcje</th>
@@ -152,8 +166,19 @@
       <tr>
         <td><span class="entry-date-bold">{{ fmt_date_pl(e.date) }}</span></td>
         <td>
-          <span class="chip {% if e.hours > 0 %}chip--ot{% else %}chip--bezp{% endif %}">
-            {{ ('+%g' % e.hours) if e.hours > 0 else ('%g' % e.hours) }}h
+          {% if e.type == 'taken' %}
+          <span class="chip chip--ot-taken">
+            <span class="material-symbols-rounded" style="font-size:0.8rem">schedule</span>Odebrane
+          </span>
+          {% else %}
+          <span class="chip chip--ot">
+            <span class="material-symbols-rounded" style="font-size:0.8rem">more_time</span>Zarobione
+          </span>
+          {% endif %}
+        </td>
+        <td>
+          <span class="chip {% if e.type == 'taken' %}chip--ot-taken{% else %}chip--ot{% endif %}">
+            {{ ('+%g' % e.hours) if e.type != 'taken' else ('-%g' % e.hours) }}h
           </span>
         </td>
         <td class="hide-mobile"><span class="table-notes">{{ e.notes or '—' }}</span></td>
