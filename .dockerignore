@@ -1,5 +1,6 @@
 venv/
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
@@ -7,4 +8,6 @@ __pycache__/
 .git/
 .gitignore
 .dockerignore
+docker-compose.yml
+Dockerfile
 *.md

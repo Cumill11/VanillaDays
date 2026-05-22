@@ -1,8 +1,8 @@
 services:
   app:
-    image: ghcr.io/cumill11/vanila-days:latest
+    image: ghcr.io/cumill11/vanilladays-flask:latest
     ports:
-      - "8002:8000"
+      - "8003:8000"
     env_file:
       - .env
     restart: unless-stopped

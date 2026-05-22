@@ -1,0 +1,7 @@
+# Wersje przypięte do stabilnych linii major (~=) — dostają poprawki
+# bezpieczeństwa w obrębie majora, bez ryzyka zmian łamiących API.
+flask~=3.1
+pymysql~=1.1
+python-dotenv~=1.2
+bcrypt~=5.0
+gunicorn~=26.0

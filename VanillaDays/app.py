@@ -5,44 +5,78 @@ import calendar as cal_module
 import csv
 import io
 import json
+import hmac
+import secrets
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Optional
 
 import bcrypt
 import pymysql
 import pymysql.cursors
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from flask import (
+    Flask, Response, jsonify, redirect, render_template, request,
+    send_from_directory, session,
+)
 from markupsafe import Markup
-from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 
-load_dotenv()
+# .env leży w katalogu nadrzędnym (root projektu), app.py w podfolderze VanillaDays/
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'))
+
+
+def _env_bool(name: str, default: str = 'false') -> bool:
+    return os.getenv(name, default).strip().lower() in ('1', 'true', 'yes', 'on')
+
 
 # ── App setup ───────────────────────────────────────────────────
 
-app = FastAPI()
+app = Flask(__name__, static_folder='static', static_url_path='/static',
+            template_folder='templates')
 
 _secret = os.getenv('SECRET_KEY')
 if not _secret:
     raise RuntimeError('SECRET_KEY is not set in environment')
 
-# Auth middleware — runs after SessionMiddleware parses the cookie
+app.secret_key = _secret
+app.config['SESSION_COOKIE_NAME']     = 'session'
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE']   = _env_bool('HTTPS_ONLY')
+app.permanent_session_lifetime        = timedelta(hours=12)
+
+# Auth — runs before every request
 UNPROTECTED_PATHS = {'/login', '/health', '/sw.js'}
 
-@app.middleware('http')
-async def require_auth(request: Request, call_next):
-    path = request.url.path
-    if path.startswith('/static') or path in UNPROTECTED_PATHS:
-        return await call_next(request)
-    if not request.session.get('logged_in'):
-        return RedirectResponse(url=f'/login?next={request.url.path}', status_code=303)
-    return await call_next(request)
 
-# Security headers — wraps require_auth, so all responses get headers (including redirects)
+def _csrf_token() -> str:
+    token = session.get('_csrf_token')
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session['_csrf_token'] = token
+    return token
+
+
+@app.context_processor
+def _inject_csrf():
+    return {'csrf_token': _csrf_token()}
+
+
+@app.before_request
+def require_auth():
+    path = request.path
+    if path.startswith('/static') or path in UNPROTECTED_PATHS:
+        return None
+    if not session.get('logged_in'):
+        return redirect(f'/login?next={request.path}', code=303)
+    if request.method == 'POST':
+        sent     = request.form.get('csrf_token') or request.headers.get('X-CSRFToken', '')
+        expected = session.get('_csrf_token', '')
+        if not expected or not hmac.compare_digest(sent, expected):
+            return Response('Nieprawidłowy token CSRF — odśwież stronę.', status=403)
+    return None
+
+
+# Security headers — applied to every response (including redirects)
 _CSP = (
     "default-src 'self'; "
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net; "
@@ -57,27 +91,15 @@ _CSP = (
     "form-action 'self';"
 )
 
-@app.middleware('http')
-async def security_headers(request: Request, call_next):
-    response = await call_next(request)
+
+@app.after_request
+def security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Content-Security-Policy'] = _CSP
     return response
 
-# SessionMiddleware added last → outermost layer → runs before all HTTP middleware
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=_secret,
-    session_cookie='session',
-    same_site='lax',
-    https_only=os.getenv('COOKIE_SECURE', '0') == '1',
-    max_age=12 * 3600,
-)
-
-app.mount('/static', StaticFiles(directory='static'), name='static')
-templates = Jinja2Templates(directory='templates')
 
 # ── Rate limiter ────────────────────────────────────────────────
 
@@ -86,15 +108,15 @@ _rl: dict[str, dict] = {}
 _MAX_ATTEMPTS = 5
 _LOCKOUT_SECS = 15 * 60
 
-_TRUSTED_PROXY = os.getenv('TRUSTED_PROXY', '').strip()
+_TRUSTED_PROXY = _env_bool('TRUSTED_PROXY')
 
 
-def _get_ip(request: Request) -> str:
+def _get_ip() -> str:
     if _TRUSTED_PROXY:
         forwarded = request.headers.get('X-Forwarded-For', '')
         if forwarded:
             return forwarded.split(',')[0].strip()
-    return request.client.host if request.client else '127.0.0.1'
+    return request.remote_addr or '127.0.0.1'
 
 
 def _check_rate_limit(ip: str):
@@ -437,9 +459,9 @@ def _tojson_filter(value):
     return Markup(json.dumps(value, default=_default))
 
 
-templates.env.globals['fmt_days']    = fmt_days
-templates.env.globals['fmt_date_pl'] = fmt_date_pl
-templates.env.filters['tojson']      = _tojson_filter
+app.jinja_env.globals['fmt_days']    = fmt_days
+app.jinja_env.globals['fmt_date_pl'] = fmt_date_pl
+app.jinja_env.filters['tojson']      = _tojson_filter
 
 
 # ── Helpers ─────────────────────────────────────────────────────
@@ -459,6 +481,14 @@ def year_context(year):
     return dict(year=year, year_options=list(range(2023, cy + 2)), today=today)
 
 
+def _csv_safe(val) -> str:
+    """Neutralize CSV/spreadsheet formula injection in user-supplied cells."""
+    s = '' if val is None else str(val)
+    if s[:1] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + s
+    return s
+
+
 def _safe_next(url: str) -> str:
     """Accept only same-origin relative paths; reject anything else."""
     if not url:
@@ -471,22 +501,21 @@ def _safe_next(url: str) -> str:
 
 # ── Routes: auth ────────────────────────────────────────────────
 
-@app.get('/login')
-async def login_get(request: Request, next: str = ''):
-    if request.session.get('logged_in'):
-        return RedirectResponse(url='/', status_code=303)
-    return templates.TemplateResponse(request, 'login.html', {
-        'error': None, 'next': _safe_next(next),
-    })
+@app.route('/login', methods=['GET'])
+def login_get():
+    if session.get('logged_in'):
+        return redirect('/', code=303)
+    return render_template('login.html', error=None,
+                           next=_safe_next(request.args.get('next', '')))
 
 
-@app.post('/login')
-async def login_post(request: Request):
-    if request.session.get('logged_in'):
-        return RedirectResponse(url='/', status_code=303)
+@app.route('/login', methods=['POST'])
+def login_post():
+    if session.get('logged_in'):
+        return redirect('/', code=303)
 
-    form  = await request.form()
-    ip    = _get_ip(request)
+    form  = request.form
+    ip    = _get_ip()
     error = None
 
     allowed, wait = _check_rate_limit(ip)
@@ -504,8 +533,9 @@ async def login_post(request: Request):
             pw_ok = False
         if pw_ok:
             _clear_failures(ip)
-            request.session['logged_in'] = True
-            return RedirectResponse(url=_safe_next(form.get('next', '')), status_code=303)
+            session.permanent = True
+            session['logged_in'] = True
+            return redirect(_safe_next(form.get('next', '')), code=303)
         else:
             _record_failure(ip)
             _, wait = _check_rate_limit(ip)
@@ -514,44 +544,38 @@ async def login_post(request: Request):
             else:
                 error = 'Nieprawidłowe hasło.'
 
-    return templates.TemplateResponse(request, 'login.html', {
-        'error': error,
-        'next':  form.get('next', ''),
-    })
+    return render_template('login.html', error=error, next=form.get('next', ''))
 
 
-@app.post('/logout')
-async def logout(request: Request):
-    request.session.clear()
-    return RedirectResponse(url='/login', status_code=303)
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return redirect('/login', code=303)
 
 
 # ── Routes: pages ───────────────────────────────────────────────
 
-@app.get('/')
-async def dashboard(request: Request, year: Optional[str] = None):
-    year    = _parse_year(year)
+@app.route('/')
+def dashboard():
+    year    = _parse_year(request.args.get('year'))
     balance = get_balance(year)
     recent  = q_all(
         "SELECT * FROM leave_entries WHERE YEAR(date)=%s ORDER BY date DESC LIMIT 10", (year,)
     )
-    return templates.TemplateResponse(request, 'dashboard.html', {
-        'balance':  balance,
-        'stats':    get_stats(year),
-        'warnings': get_warnings(year, balance),
-        'recent':   recent,
-        'active':   'dashboard',
+    return render_template('dashboard.html',
+        balance=balance,
+        stats=get_stats(year),
+        warnings=get_warnings(year, balance),
+        recent=recent,
+        active='dashboard',
         **year_context(year),
-    })
+    )
 
 
-@app.get('/calendar')
-async def calendar_page(
-    request: Request,
-    year:  Optional[str] = None,
-    month: Optional[int] = None,
-):
-    year  = _parse_year(year)
+@app.route('/calendar')
+def calendar_page():
+    year  = _parse_year(request.args.get('year'))
+    month = request.args.get('month', type=int)
     month = month if month is not None else date.today().month
 
     days         = get_calendar_days(year, month)
@@ -577,82 +601,80 @@ async def calendar_page(
     prev_m, prev_y = (month - 1, year) if month > 1 else (12, year - 1)
     next_m, next_y = (month + 1, year) if month < 12 else (1, year + 1)
 
-    return templates.TemplateResponse(request, 'calendar.html', {
-        'month':            month,
-        'month_name':       MONTH_NAMES[month - 1],
-        'days':             days,
-        'entries_by_date':  entries_by_date,
-        'overtime_by_date': overtime_by_date,
-        'holidays':         get_polish_holidays(year),
-        'prev_month':       prev_m,
-        'prev_year':        prev_y,
-        'next_month':       next_m,
-        'next_year':        next_y,
-        'active':           'calendar',
+    return render_template('calendar.html',
+        month=month,
+        month_name=MONTH_NAMES[month - 1],
+        days=days,
+        entries_by_date=entries_by_date,
+        overtime_by_date=overtime_by_date,
+        holidays=get_polish_holidays(year),
+        prev_month=prev_m,
+        prev_year=prev_y,
+        next_month=next_m,
+        next_year=next_y,
+        active='calendar',
         **year_context(year),
-    })
+    )
 
 
-@app.get('/history')
-async def history(
-    request: Request,
-    year:  Optional[str] = None,
-    type:  str = '',
-    month: str = '',
-):
-    year    = _parse_year(year)
-    type_f  = type
-    month_f = month
+@app.route('/history')
+def history():
+    year    = _parse_year(request.args.get('year'))
+    type_f  = request.args.get('type', '')
+    month_f = request.args.get('month', '')
+
+    month_num = int(month_f) if month_f.isdigit() and 1 <= int(month_f) <= 12 else None
+    month_f   = str(month_num) if month_num else ''
 
     sql    = 'SELECT * FROM leave_entries WHERE YEAR(date)=%s'
     params = [year]
     if type_f:
         sql += ' AND type=%s'; params.append(type_f)
-    if month_f:
-        sql += ' AND MONTH(date)=%s'; params.append(int(month_f))
+    if month_num:
+        sql += ' AND MONTH(date)=%s'; params.append(month_num)
     sql += ' ORDER BY date DESC'
     entries = q_all(sql, tuple(params))
 
     ot_sql    = 'SELECT * FROM overtime_log WHERE YEAR(date)=%s'
     ot_params = [year]
-    if month_f:
-        ot_sql += ' AND MONTH(date)=%s'; ot_params.append(int(month_f))
+    if month_num:
+        ot_sql += ' AND MONTH(date)=%s'; ot_params.append(month_num)
     ot_sql += ' ORDER BY date DESC'
     ot_entries  = q_all(ot_sql, tuple(ot_params))
     ot_earned   = sum(float(e['hours']) for e in ot_entries if e.get('type') != 'taken')
     ot_taken    = sum(float(e['hours']) for e in ot_entries if e.get('type') == 'taken')
     ot_balance  = ot_earned - ot_taken
 
-    return templates.TemplateResponse(request, 'history.html', {
-        'entries':      entries,
-        'type_filter':  type_f,
-        'month_filter': month_f,
-        'month_names':  MONTH_NAMES,
-        'ot_entries':   ot_entries,
-        'ot_earned':    ot_earned,
-        'ot_taken':     ot_taken,
-        'ot_balance':   ot_balance,
-        'active':       'history',
+    return render_template('history.html',
+        entries=entries,
+        type_filter=type_f,
+        month_filter=month_f,
+        month_names=MONTH_NAMES,
+        ot_entries=ot_entries,
+        ot_earned=ot_earned,
+        ot_taken=ot_taken,
+        ot_balance=ot_balance,
+        active='history',
         **year_context(year),
-    })
+    )
 
 
-@app.get('/settings')
-async def settings(request: Request, year: Optional[str] = None):
-    year   = _parse_year(year)
+@app.route('/settings')
+def settings():
+    year   = _parse_year(request.args.get('year'))
     config = get_or_create_config(year)
-    return templates.TemplateResponse(request, 'settings.html', {
-        'config': config,
-        'active': 'settings',
+    return render_template('settings.html',
+        config=config,
+        active='settings',
         **year_context(year),
-    })
+    )
 
 
 # ── Routes: CRUD ────────────────────────────────────────────────
 
-@app.post('/entries/save')
-async def save_entry(request: Request):
-    form          = await request.form()
+@app.route('/entries/save', methods=['POST'])
+def save_entry():
+    form          = request.form
     entry_id      = form.get('id', '').strip()
     d             = form.get('date', '')
     t             = form.get('type', '')
@@ -670,7 +692,7 @@ async def save_entry(request: Request):
     notes = notes or None
 
     if not d or not t:
-        return Response('Brak daty lub typu', status_code=400)
+        return Response('Brak daty lub typu', status=400)
 
     try:
         if entry_id:
@@ -684,20 +706,20 @@ async def save_entry(request: Request):
                 (d, t, notes),
             )
     except pymysql.err.IntegrityError:
-        return Response('Wpis dla tej daty już istnieje', status_code=409)
+        return Response('Wpis dla tej daty już istnieje', status=409)
 
-    return Response(status_code=200)
+    return Response(status=200)
 
 
-@app.post('/entries/{entry_id}/delete')
-async def delete_entry(entry_id: int):
+@app.route('/entries/<int:entry_id>/delete', methods=['POST'])
+def delete_entry(entry_id):
     q_exec('DELETE FROM leave_entries WHERE id=%s', (entry_id,))
-    return Response(status_code=204, headers={'HX-Refresh': 'true'})
+    return Response(status=204, headers={'HX-Refresh': 'true'})
 
 
-@app.post('/config/{year}/save')
-async def save_config(year: int, request: Request):
-    form = await request.form()
+@app.route('/config/<int:year>/save', methods=['POST'])
+def save_config(year):
+    form = request.form
     get_or_create_config(year)
     q_exec("""
         UPDATE year_config
@@ -709,43 +731,43 @@ async def save_config(year: int, request: Request):
         float(form.get('vacation_carried_over') or 0),
         year,
     ))
-    return HTMLResponse('<div class="alert alert--success">Zapisano!</div>', status_code=200)
+    return Response('<div class="alert alert--success">Zapisano!</div>', status=200)
 
 
-@app.post('/overtime/save')
-async def save_overtime(request: Request):
-    form      = await request.form()
+@app.route('/overtime/save', methods=['POST'])
+def save_overtime():
+    form      = request.form
     d         = form.get('date', '')
     hours_str = form.get('hours', '').strip()
     ot_type   = form.get('type', 'earned')
     notes     = form.get('notes', '').strip() or None
     if not d or not hours_str:
-        return Response('Brak danych', status_code=400)
+        return Response('Brak danych', status=400)
     if ot_type not in ('earned', 'taken'):
-        return Response('Nieprawidłowy typ', status_code=400)
+        return Response('Nieprawidłowy typ', status=400)
     try:
         hours = float(hours_str)
     except ValueError:
-        return Response('Nieprawidłowa liczba godzin', status_code=400)
+        return Response('Nieprawidłowa liczba godzin', status=400)
     if hours <= 0:
-        return Response('Liczba godzin musi być większa od 0', status_code=400)
+        return Response('Liczba godzin musi być większa od 0', status=400)
     q_exec(
         "INSERT INTO overtime_log (date, hours, type, notes) VALUES (%s, %s, %s, %s)",
         (d, hours, ot_type, notes),
     )
-    return Response(status_code=200)
+    return Response(status=200)
 
 
-@app.post('/overtime/{entry_id}/delete')
-async def delete_overtime(entry_id: int):
+@app.route('/overtime/<int:entry_id>/delete', methods=['POST'])
+def delete_overtime(entry_id):
     q_exec('DELETE FROM overtime_log WHERE id=%s', (entry_id,))
-    return Response(status_code=204, headers={'HX-Refresh': 'true'})
+    return Response(status=204, headers={'HX-Refresh': 'true'})
 
 
-@app.get('/export/csv')
-async def export_csv(request: Request, year: Optional[str] = None, type: str = ''):
-    year   = _parse_year(year)
-    type_f = type
+@app.route('/export/csv')
+def export_csv():
+    year   = _parse_year(request.args.get('year'))
+    type_f = request.args.get('type', '')
 
     sql    = 'SELECT * FROM leave_entries WHERE YEAR(date)=%s'
     params = [year]
@@ -767,27 +789,29 @@ async def export_csv(request: Request, year: Optional[str] = None, type: str = '
     w.writerow(['Data', 'Typ', 'Notatka'])
     for e in entries:
         d_str = e['date'].strftime('%Y-%m-%d') if hasattr(e['date'], 'strftime') else str(e['date'])
-        w.writerow([d_str, TYPE_LABELS.get(e['type'], e['type']), e['notes'] or ''])
+        w.writerow([
+            _csv_safe(d_str),
+            _csv_safe(TYPE_LABELS.get(e['type'], e['type'])),
+            _csv_safe(e['notes'] or ''),
+        ])
     output.seek(0)
     return Response(
         '﻿' + output.getvalue(),
-        media_type='text/csv; charset=utf-8',
+        mimetype='text/csv; charset=utf-8',
         headers={'Content-Disposition': f'attachment; filename=urlopy_{year}.csv'},
     )
 
 
-@app.get('/sw.js')
-async def service_worker():
-    return FileResponse(
-        'static/sw.js',
-        media_type='application/javascript',
-        headers={'Service-Worker-Allowed': '/'},
-    )
+@app.route('/sw.js')
+def service_worker():
+    resp = send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
+    resp.headers['Service-Worker-Allowed'] = '/'
+    return resp
 
 
-@app.get('/health')
-async def health():
-    return JSONResponse({'status': 'ok'})
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok'})
 
 
 # ── Startup ─────────────────────────────────────────────────────
@@ -796,3 +820,11 @@ try:
     init_db()
 except Exception as e:
     print(f'[warn] DB init: {e}')
+
+
+if __name__ == '__main__':
+    app.run(
+        host=os.getenv('FLASK_HOST', '0.0.0.0'),
+        port=int(os.getenv('FLASK_PORT', '8000')),
+        debug=_env_bool('FLASK_DEBUG'),
+    )

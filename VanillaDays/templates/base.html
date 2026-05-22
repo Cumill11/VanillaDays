@@ -56,6 +56,7 @@
           {% endfor %}
         </select>
         <form method="post" action="/logout" style="margin:0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="icon-btn" title="Wyloguj się">
             <span class="material-symbols-rounded">logout</span>
           </button>
@@ -185,6 +186,12 @@
   </div><!-- .layout -->
 
   <script src="/static/js/app.js"></script>
+  <script>
+    // Attach CSRF token to every htmx request (forms + htmx.ajax deletes)
+    document.body.addEventListener('htmx:configRequest', function (e) {
+      e.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+    });
+  </script>
   {% block scripts %}{% endblock %}
   <script>
     if ('serviceWorker' in navigator) {
