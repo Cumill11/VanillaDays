@@ -46,8 +46,11 @@ telefonie, tryb offline).
 3. Wygeneruj hash hasła logowania:
 
    ```bash
-   python3 -c "import bcrypt; print(bcrypt.hashpw(b'TWOJE_HASLO', bcrypt.gensalt(12)).decode())"
+   python3 -c "import bcrypt, getpass; print(bcrypt.hashpw(getpass.getpass('Haslo: ').encode(), bcrypt.gensalt(12)).decode())"
    ```
+
+   Komenda zapyta o hasło w ukrytym prompcie — wpisz je tam. Dzięki temu hasło nie
+   trafia do linii poleceń, więc powłoka nie zepsuje znaków specjalnych (`$`, `` ` ``, `\`).
 
    Wstaw hash do `LOGIN_PASSWORD_HASH` **w apostrofach** — inaczej docker compose
    zinterpretuje znak `$` i uszkodzi hash.
@@ -136,8 +139,12 @@ overtime — built with Flask and a MySQL/MariaDB database. It also works as a P
 3. Generate the login password hash:
 
    ```bash
-   python3 -c "import bcrypt; print(bcrypt.hashpw(b'YOUR_PASSWORD', bcrypt.gensalt(12)).decode())"
+   python3 -c "import bcrypt, getpass; print(bcrypt.hashpw(getpass.getpass('Password: ').encode(), bcrypt.gensalt(12)).decode())"
    ```
+
+   The command asks for the password in a hidden prompt — type it there. This keeps
+   the password off the command line, so the shell cannot mangle special characters
+   (`$`, `` ` ``, `\`).
 
    Put the hash into `LOGIN_PASSWORD_HASH` **inside single quotes** — otherwise
    docker compose interpolates the `$` character and corrupts the hash.
