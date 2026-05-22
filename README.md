@@ -21,7 +21,8 @@ telefonie, tryb offline).
 - **Ustawienia** — limity urlopu, Home Office oraz dni przeniesione z poprzedniego roku.
 - **Bezpieczeństwo** — logowanie (bcrypt), ochrona CSRF, limit prób logowania,
   nagłówki bezpieczeństwa (CSP, X-Frame-Options itd.).
-- **PWA** — działa offline, instalowalna jako aplikacja.
+- **PWA** — instalowalna jako aplikacja (na telefonie i pulpicie), z cache'owaniem
+  zasobów statycznych.
 
 ### Wymagania
 
@@ -110,7 +111,8 @@ overtime — built with Flask and a MySQL/MariaDB database. It also works as a P
   previous year.
 - **Security** — login (bcrypt), CSRF protection, login rate limiting, security
   headers (CSP, X-Frame-Options, etc.).
-- **PWA** — works offline, installable as an app.
+- **PWA** — installable as an app (on mobile and desktop), with static asset
+  caching.
 
 ### Requirements
 
