@@ -54,6 +54,41 @@
     </form>
   </div>
 
+  <div class="card" style="margin-top:1.5rem">
+    <div class="card-title">Zmiana hasła</div>
+    <form hx-post="/account/password"
+          hx-target="#password-feedback"
+          hx-swap="innerHTML"
+          hx-on::after-request="if(event.detail.successful) this.reset()"
+          class="settings-form">
+
+      <div class="field">
+        <label class="field-label">Aktualne hasło</label>
+        <input type="password" name="current_password" class="field-input"
+               autocomplete="current-password" required>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Nowe hasło</label>
+        <input type="password" name="new_password" class="field-input"
+               autocomplete="new-password" minlength="8" required>
+        <span class="field-hint">Minimum 8 znaków</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Powtórz nowe hasło</label>
+        <input type="password" name="confirm_password" class="field-input"
+               autocomplete="new-password" minlength="8" required>
+      </div>
+
+      <div id="password-feedback"></div>
+
+      <button type="submit" class="btn btn-filled" style="margin-top:0.5rem">
+        <span class="material-symbols-rounded" style="font-size:1.1rem">key</span>
+        Zmień hasło
+      </button>
+    </form>
+  </div>
 
 </div>
 {% endblock %}

@@ -234,6 +234,24 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    username VARCHAR(100) NOT NULL UNIQUE,
+                    password_hash VARBINARY(255) NOT NULL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                )
+            """)
+            cur.execute('SELECT COUNT(*) AS n FROM users')
+            if (cur.fetchone() or {}).get('n', 0) == 0:
+                seed_user = os.getenv('LOGIN_USERNAME', '').strip()
+                seed_hash = os.getenv('LOGIN_PASSWORD_HASH', '').strip().encode()
+                if seed_user and seed_hash:
+                    cur.execute(
+                        'INSERT INTO users (username, password_hash) VALUES (%s, %s)',
+                        (seed_user, seed_hash),
+                    )
+                    print(f'[info] Seeded users table from env (user: {seed_user})')
             try:
                 cur.execute("""
                     ALTER TABLE leave_entries
@@ -523,18 +541,18 @@ def login_post():
         mins  = wait // 60
         error = f'Za dużo nieudanych prób. Spróbuj za {mins} min.'
     else:
-        username      = form.get('username', '').strip()
-        password      = form.get('password', '').encode()
-        stored        = os.getenv('LOGIN_PASSWORD_HASH', '').encode()
-        expected_user = os.getenv('LOGIN_USERNAME', '')
+        username = form.get('username', '').strip()
+        password = form.get('password', '').encode()
+        user     = q_one('SELECT id, password_hash FROM users WHERE username=%s', (username,))
         try:
-            pw_ok = stored and expected_user and username == expected_user and bcrypt.checkpw(password, stored)
+            pw_ok = bool(user) and bcrypt.checkpw(password, bytes(user['password_hash']))
         except ValueError:
             pw_ok = False
         if pw_ok:
             _clear_failures(ip)
             session.permanent = True
             session['logged_in'] = True
+            session['user_id'] = user['id']
             return redirect(_safe_next(form.get('next', '')), code=303)
         else:
             _record_failure(ip)
@@ -551,6 +569,34 @@ def login_post():
 def logout():
     session.clear()
     return redirect('/login', code=303)
+
+
+@app.route('/account/password', methods=['POST'])
+def change_password():
+    form = request.form
+    current = form.get('current_password', '').encode()
+    new_pw  = form.get('new_password', '')
+    confirm = form.get('confirm_password', '')
+
+    uid = session.get('user_id')
+    user = q_one('SELECT id, password_hash FROM users WHERE id=%s', (uid,)) if uid else None
+    if not user:
+        return Response('<div class="alert alert--error">Sesja wygasła — zaloguj się ponownie.</div>', status=401)
+
+    try:
+        if not bcrypt.checkpw(current, bytes(user['password_hash'])):
+            return Response('<div class="alert alert--error">Aktualne hasło jest nieprawidłowe.</div>', status=400)
+    except ValueError:
+        return Response('<div class="alert alert--error">Aktualne hasło jest nieprawidłowe.</div>', status=400)
+
+    if len(new_pw) < 8:
+        return Response('<div class="alert alert--error">Nowe hasło musi mieć co najmniej 8 znaków.</div>', status=400)
+    if new_pw != confirm:
+        return Response('<div class="alert alert--error">Hasła nie są identyczne.</div>', status=400)
+
+    new_hash = bcrypt.hashpw(new_pw.encode(), bcrypt.gensalt())
+    q_exec('UPDATE users SET password_hash=%s WHERE id=%s', (new_hash, user['id']))
+    return Response('<div class="alert alert--success">Hasło zostało zmienione.</div>', status=200)
 
 
 # ── Routes: pages ───────────────────────────────────────────────
