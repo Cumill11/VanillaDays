@@ -1,0 +1,16 @@
+---
+import Icon from './Icon.astro';
+import { getLeaveTypeMeta } from '../lib/leaveTypes';
+import type { LeaveEntry } from '../lib/types';
+
+interface Props {
+  entry: LeaveEntry;
+}
+
+const { entry } = Astro.props;
+const date = entry.date.substring(0, 10);
+const meta = getLeaveTypeMeta(entry.type);
+---
+<span class:list={['cal-chip', meta.calendarClass]} data-delete-entry-id={entry.id} data-delete-label={date} title={meta.label}>
+  <Icon name={meta.icon} size="0.65rem" />{meta.calendarLabel}
+</span>

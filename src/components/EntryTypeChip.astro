@@ -1,0 +1,16 @@
+---
+import Chip from './Chip.astro';
+import { getLeaveTypeMeta } from '../lib/leaveTypes';
+import type { LeaveType } from '../lib/types';
+
+interface Props {
+  type: LeaveType | string;
+  short?: boolean;
+}
+
+const { type, short = false } = Astro.props;
+const meta = getLeaveTypeMeta(type);
+---
+<Chip class={meta.className} icon={meta.icon}>
+  {short ? meta.shortLabel : meta.label}
+</Chip>

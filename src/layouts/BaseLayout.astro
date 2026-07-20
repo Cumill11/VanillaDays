@@ -1,0 +1,457 @@
+---
+import Icon from '../components/Icon.astro';
+
+interface Props {
+  title: string;
+  pageTitle: string;
+  active: 'dashboard' | 'calendar' | 'history' | 'settings';
+  year: number;
+  yearOptions: number[];
+  today: Date;
+  csrf: string;
+}
+
+const { title, pageTitle, active, year, yearOptions, today, csrf } = Astro.props;
+const nav = [
+  ['dashboard', 'dashboard', 'Pulpit', `/?year=${year}`],
+  ['calendar', 'calendar_month', 'Kalendarz', `/calendar?year=${year}&month=${today.getMonth() + 1}`],
+  ['history', 'history', 'Historia', `/history?year=${year}`],
+  ['settings', 'settings', 'Ustawienia', `/settings?year=${year}`],
+] as const;
+---
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+  <meta name="theme-color" content="#141218">
+  <link rel="stylesheet" href="/static/css/style.css?v=2">
+  <slot name="scripts" />
+</head>
+<body data-csrf={csrf}>
+  <div class="layout">
+    <nav class="sidebar">
+      <div class="sidebar-brand">
+        <img src="/static/logo.svg" alt="VanillaDays" class="brand-logo">
+        <span class="brand-text">VanillaDays</span>
+      </div>
+
+      <ul class="nav-list">
+        {nav.map(([id, icon, label, href]) => (
+          <li>
+            <a href={href} class:list={['nav-item', { active: active === id }]}>
+              <Icon name={icon} />
+              <span>{label}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <header class="topbar">
+      <h1 class="page-title">{pageTitle}</h1>
+      <div class="topbar-end">
+        <select class="year-select" data-year-select>
+          {yearOptions.map((y) => <option value={y} selected={y === year}>{y}</option>)}
+        </select>
+        <form method="post" action="/logout" class="logout-form">
+          <input type="hidden" name="csrf_token" value={csrf}>
+          <button type="submit" class="icon-btn" title="Wyloguj się">
+            <Icon name="logout" />
+          </button>
+        </form>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <slot />
+    </main>
+
+    <nav class="bottom-nav">
+      {nav.map(([id, icon, label, href]) => (
+        <a href={href} class:list={['bottom-nav-item', { active: active === id }]}>
+          <Icon name={icon} />
+          <span>{label}</span>
+        </a>
+      ))}
+    </nav>
+
+    <div class="modal-backdrop" data-entry-modal style="display:none">
+      <div class="modal" data-entry-modal-panel>
+        <div class="modal-header">
+          <h2 data-entry-modal-title>Dodaj wpis</h2>
+          <button class="icon-btn" data-close-entry-modal type="button">
+            <Icon name="close" />
+          </button>
+        </div>
+
+        <form action="/entries/save" method="post" data-entry-form>
+          <input type="hidden" name="id" data-entry-id>
+          <input type="hidden" name="csrf_token" value={csrf}>
+
+          <div class="toggle-group toggle-group--6">
+            <button type="button" class="toggle-btn active" data-entry-type-button data-entry-type="vacation">
+              <Icon name="beach_access" /> Urlop
+            </button>
+            <button type="button" class="toggle-btn" data-entry-type-button data-entry-type="home_office">
+              <Icon name="home" /> Home Office
+            </button>
+            <button type="button" class="toggle-btn" data-entry-type-button data-entry-type="okolicznosciowy">
+              <Icon name="celebration" /> Okolicznościowy
+            </button>
+            <button type="button" class="toggle-btn" data-entry-type-button data-entry-type="bezplatny">
+              <Icon name="money_off" /> Bezpłatny
+            </button>
+            <button type="button" class="toggle-btn" data-entry-type-button data-entry-type="l4">
+              <Icon name="medical_services" /> L4
+            </button>
+            <button type="button" class="toggle-btn" data-entry-type-button data-entry-type="za_swieto">
+              <Icon name="event_repeat" /> Za święto
+            </button>
+          </div>
+          <input type="hidden" name="type" value="vacation" data-entry-type-input>
+
+          <div class="field">
+            <label class="field-label">Data</label>
+            <input type="date" name="date" class="field-input" data-entry-date required>
+          </div>
+
+          <div class="field" data-entry-extra="okolicznosciowy" hidden>
+            <label class="field-label">Powód urlopu okolicznościowego</label>
+            <select name="okol_reason" class="field-input">
+              <option value="">— wybierz powód (opcjonalnie) —</option>
+              <option value="Ślub własny (2 dni)">Ślub własny</option>
+              <option value="Ślub dziecka (1 dzień)">Ślub dziecka</option>
+              <option value="Urodzenie dziecka (2 dni)">Urodzenie dziecka</option>
+              <option value="Zgon i pogrzeb małżonka/dziecka/rodzica (2 dni)">Zgon małżonka / dziecka / rodzica</option>
+              <option value="Zgon i pogrzeb brata/siostry/teścia (1 dzień)">Zgon brata / siostry / teścia</option>
+              <option value="Zgon i pogrzeb babci/dziadka (1 dzień)">Zgon babci / dziadka</option>
+              <option value="Inne">Inne</option>
+            </select>
+          </div>
+
+          <div class="field" data-entry-extra="l4" hidden>
+            <label class="field-label">Numer serii ZUS <span class="field-optional">(opcjonalnie)</span></label>
+            <input type="text" name="l4_number" class="field-input" placeholder="np. ZLA/2025/XXXXX">
+          </div>
+
+          <div class="field" data-entry-extra="za_swieto" hidden>
+            <label class="field-label">Za które święto <span class="field-optional">(opcjonalnie)</span></label>
+            <input type="text" name="za_swieto_day" class="field-input" placeholder="np. Boże Narodzenie 25.12">
+          </div>
+
+          <div class="field">
+            <label class="field-label">Notatka <span class="field-optional">(opcjonalnie)</span></label>
+            <textarea name="notes" class="field-input" rows="2" maxlength="500" data-entry-notes></textarea>
+          </div>
+
+          <div class="form-error" data-entry-form-error hidden></div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-text" data-close-entry-modal>Anuluj</button>
+            <button type="submit" class="btn btn-filled" data-entry-submit>
+              <span class="btn-spinner" data-entry-spinner hidden></span>
+              <span data-entry-submit-label>Dodaj</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script is:inline>
+    function csrfToken() {
+      return document.body.dataset.csrf || '';
+    }
+
+    function todayIso() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    async function postForm(form, url = form.action) {
+      return fetch(url, {
+        method: form.method || 'POST',
+        body: new FormData(form),
+        headers: { 'X-CSRFToken': csrfToken() },
+        credentials: 'same-origin',
+      });
+    }
+
+    async function postAction(url) {
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken() },
+        credentials: 'same-origin',
+      });
+    }
+
+    function changeYear(year) {
+      const url = new URL(window.location);
+      url.searchParams.set('year', year);
+      window.location = url.toString();
+    }
+
+    function initYearSelects() {
+      document.querySelectorAll('[data-year-select]').forEach((select) => {
+        select.addEventListener('change', () => changeYear(select.value));
+      });
+    }
+
+    function notesPlaceholder(type) {
+      const map = {
+        vacation: 'np. urlop wypoczynkowy, wyjazd…',
+        home_office: 'np. praca zdalna, projekt X…',
+        okolicznosciowy: 'dodatkowe informacje…',
+        bezplatny: 'np. opieka nad dzieckiem, powód…',
+        l4: 'dodatkowe informacje…',
+        za_swieto: 'dodatkowe informacje…',
+      };
+      return map[type] || '';
+    }
+
+    function initEntryModal() {
+      const modal = document.querySelector('[data-entry-modal]');
+      const form = document.querySelector('[data-entry-form]');
+      if (!modal || !form) return;
+
+      const title = modal.querySelector('[data-entry-modal-title]');
+      const idInput = form.querySelector('[data-entry-id]');
+      const typeInput = form.querySelector('[data-entry-type-input]');
+      const dateInput = form.querySelector('[data-entry-date]');
+      const notesInput = form.querySelector('[data-entry-notes]');
+      const errorBox = form.querySelector('[data-entry-form-error]');
+      const submit = form.querySelector('[data-entry-submit]');
+      const submitLabel = form.querySelector('[data-entry-submit-label]');
+      const spinner = form.querySelector('[data-entry-spinner]');
+
+      function setType(type) {
+        typeInput.value = type;
+        form.querySelectorAll('[data-entry-type-button]').forEach((button) => {
+          button.classList.toggle('active', button.dataset.entryType === type);
+        });
+        form.querySelectorAll('[data-entry-extra]').forEach((field) => {
+          field.hidden = field.dataset.entryExtra !== type;
+        });
+        notesInput.placeholder = notesPlaceholder(type);
+      }
+
+      function closeModal() {
+        modal.style.display = 'none';
+      }
+
+      function openModal(entry, prefillDate = '') {
+        form.reset();
+        errorBox.hidden = true;
+        errorBox.textContent = '';
+        idInput.value = entry?.id || '';
+        title.textContent = entry?.id ? 'Edytuj wpis' : 'Dodaj wpis';
+        submitLabel.textContent = entry?.id ? 'Zapisz' : 'Dodaj';
+        dateInput.value = entry?.date ? String(entry.date).substring(0, 10) : prefillDate;
+        notesInput.value = entry?.notes || '';
+        setType(entry?.type || 'vacation');
+        modal.style.display = 'flex';
+      }
+
+      window.addEventListener('open-add', (event) => openModal(null, event.detail?.date || ''));
+      window.addEventListener('open-edit', (event) => openModal(event.detail));
+
+      form.querySelectorAll('[data-entry-type-button]').forEach((button) => {
+        button.addEventListener('click', () => setType(button.dataset.entryType));
+      });
+      modal.querySelectorAll('[data-close-entry-modal]').forEach((button) => {
+        button.addEventListener('click', closeModal);
+      });
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeModal();
+      });
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        submit.disabled = true;
+        spinner.hidden = false;
+        errorBox.hidden = true;
+        const response = await postForm(form);
+        submit.disabled = false;
+        spinner.hidden = true;
+        if (response.ok) {
+          closeModal();
+          window.location.reload();
+          return;
+        }
+        errorBox.textContent = await response.text() || 'Wystąpił błąd. Spróbuj ponownie.';
+        errorBox.hidden = false;
+      });
+    }
+
+    function initCalendar() {
+      document.querySelectorAll('.cal-day').forEach((day) => {
+        day.addEventListener('click', () => {
+          if (day.dataset.inMonth !== 'true') return;
+          if (day.classList.contains('cal-day--weekend')) return;
+          if (day.dataset.hasEntries === 'true') return;
+          window.dispatchEvent(new CustomEvent('open-add', { detail: { date: day.dataset.date } }));
+        });
+      });
+    }
+
+    function initDeletes() {
+      document.addEventListener('click', async (event) => {
+        const entryButton = event.target.closest('[data-delete-entry-id]');
+        if (entryButton) {
+          event.stopPropagation();
+          if (!confirm('Usunąć wpis z dnia ' + entryButton.dataset.deleteLabel + '?')) return;
+          await postAction('/entries/' + entryButton.dataset.deleteEntryId + '/delete');
+          window.location.reload();
+          return;
+        }
+
+        const overtimeButton = event.target.closest('[data-delete-overtime-id]');
+        if (overtimeButton) {
+          event.stopPropagation();
+          if (!confirm('Usunąć wpis nadgodzin z dnia ' + overtimeButton.dataset.deleteLabel + '?')) return;
+          await postAction('/overtime/' + overtimeButton.dataset.deleteOvertimeId + '/delete');
+          window.location.reload();
+        }
+      });
+    }
+
+    function initHistoryActions() {
+      document.addEventListener('click', (event) => {
+        const editButton = event.target.closest('[data-edit-entry]');
+        if (editButton) {
+          window.dispatchEvent(new CustomEvent('open-edit', { detail: JSON.parse(editButton.dataset.editEntry) }));
+          return;
+        }
+        if (event.target.closest('[data-print]')) {
+          window.print();
+        }
+      });
+    }
+
+    function initAjaxForms() {
+      document.querySelectorAll('[data-ajax-form]').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const response = await postForm(form);
+          if (response.ok) window.location.reload();
+          else alert(await response.text() || 'Wystąpił błąd. Spróbuj ponownie.');
+        });
+      });
+    }
+
+    function initOvertime() {
+      document.querySelectorAll('[data-overtime-card]').forEach((card) => {
+        const wrap = card.querySelector('[data-overtime-form-wrap]');
+        const typeInput = card.querySelector('[data-overtime-type]');
+        card.querySelectorAll('[data-overtime-mode]').forEach((button) => {
+          button.addEventListener('click', () => {
+            const selected = typeInput.value === button.dataset.overtimeMode;
+            typeInput.value = selected ? '' : button.dataset.overtimeMode;
+            wrap.hidden = selected;
+          });
+        });
+      });
+      document.querySelectorAll('[data-today]').forEach((input) => {
+        if (!input.value) input.value = todayIso();
+      });
+    }
+
+    function initSettingsForms() {
+      document.querySelectorAll('[data-settings-form]').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const target = document.querySelector(form.dataset.ajaxTarget);
+          const response = await postForm(form, form.dataset.ajaxUrl || form.action);
+          if (target) target.innerHTML = await response.text();
+        });
+      });
+    }
+
+    function initAutoSubmit() {
+      document.querySelectorAll('[data-auto-submit]').forEach((field) => {
+        field.addEventListener('change', () => field.form?.submit());
+      });
+    }
+
+    function initChart(canvasId, stats) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || typeof Chart === 'undefined') return;
+
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: stats.map((m) => m.label),
+          datasets: [
+            {
+              label: 'Urlop',
+              data: stats.map((m) => m.vacation),
+              backgroundColor: 'rgba(179,157,219,0.75)',
+              borderRadius: 4,
+              borderSkipped: false,
+            },
+            {
+              label: 'Home Office',
+              data: stats.map((m) => m.home_office),
+              backgroundColor: 'rgba(128,203,196,0.75)',
+              borderRadius: 4,
+              borderSkipped: false,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: '#CAC4D0', font: { size: 12 }, boxWidth: 12, boxHeight: 12 },
+            },
+            tooltip: {
+              backgroundColor: '#2D2B32',
+              titleColor: '#E6E1E5',
+              bodyColor: '#CAC4D0',
+              borderColor: 'rgba(255,255,255,0.1)',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw} dni`,
+              },
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: '#938F99', font: { size: 11 } },
+              grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+            },
+            y: {
+              ticks: { color: '#938F99', font: { size: 11 }, stepSize: 1 },
+              grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+
+    function initCharts() {
+      document.querySelectorAll('canvas[data-stats]').forEach((canvas) => {
+        initChart(canvas.id, JSON.parse(canvas.dataset.stats));
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initEntryModal();
+      initYearSelects();
+      initCalendar();
+      initDeletes();
+      initHistoryActions();
+      initAjaxForms();
+      initOvertime();
+      initSettingsForms();
+      initAutoSubmit();
+      initCharts();
+    });
+  </script>
+</body>
+</html>

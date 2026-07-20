@@ -1,0 +1,86 @@
+---
+import { env } from 'cloudflare:workers';
+import Icon from '../components/Icon.astro';
+import { checkPassword, checkRateLimit, clearFailures, recordFailure } from '../lib/db';
+import { createSessionCookie, getSessionCookie, isHttpsOnly, safeNext, setSession, verifySessionCookie } from '../lib/security';
+
+let error: string | null = null;
+let nextUrl = safeNext(Astro.url.searchParams.get('next'));
+
+const existing = await verifySessionCookie(getSessionCookie(Astro.request), env.SECRET_KEY);
+if (existing) return Astro.redirect('/', 303);
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  nextUrl = safeNext(String(form.get('next') || ''));
+  const username = String(form.get('username') || '').trim();
+  const password = String(form.get('password') || '');
+  const ip = Astro.request.headers.get('CF-Connecting-IP')
+    || Astro.request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim()
+    || Astro.clientAddress
+    || '127.0.0.1';
+  const rateKey = ip;
+  const configuredUsername = String(env.LOGIN_USERNAME || '').trim();
+  const configuredHash = String(env.LOGIN_PASSWORD_HASH || '').trim();
+
+  const allowed = await checkRateLimit(env.DB, rateKey);
+
+  if (!allowed.allowed) {
+    error = `Za dużo nieudanych prób. Spróbuj za ${Math.floor(allowed.wait / 60)} min.`;
+  } else {
+    const ok = Boolean(configuredUsername && configuredHash)
+      && username === configuredUsername
+      && await checkPassword(password, configuredHash);
+
+    if (ok) {
+      await clearFailures(env.DB, rateKey);
+      const headers = new Headers({ Location: nextUrl });
+      const { value } = await createSessionCookie(env.SECRET_KEY);
+      setSession(headers, value, isHttpsOnly(env.HTTPS_ONLY));
+      return new Response(null, { status: 303, headers });
+    }
+
+    const wait = await recordFailure(env.DB, rateKey);
+    error = wait ? `Za dużo nieudanych prób. Spróbuj za ${Math.floor(wait / 60)} min.` : 'Nieprawidłowe hasło.';
+  }
+}
+---
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logowanie – VanillaDays</title>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      <img src="/static/logo.svg" alt="VanillaDays" class="login-logo">
+      VanillaDays
+    </div>
+
+    {error && (
+      <div class="login-error">
+        <Icon name="error" size="1rem" />
+        {error}
+      </div>
+    )}
+
+    <form method="post">
+      <input type="hidden" name="next" value={nextUrl}>
+      <div class="field">
+        <label class="field-label">Nazwa użytkownika</label>
+        <input type="text" name="username" class="field-input" autofocus autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label class="field-label">Hasło</label>
+        <input type="password" name="password" class="field-input" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-filled login-submit">Zaloguj się</button>
+    </form>
+  </div>
+</body>
+</html>

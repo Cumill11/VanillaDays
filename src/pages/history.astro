@@ -1,0 +1,181 @@
+---
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Chip from '../components/Chip.astro';
+import EntryTypeChip from '../components/EntryTypeChip.astro';
+import Icon from '../components/Icon.astro';
+import { getHistoryEntries, getHistoryOvertime } from '../lib/db';
+import { fmtDatePl, fmtDays, MONTH_NAMES, parseYear, yearContext } from '../lib/dates';
+
+const year = parseYear(Astro.url.searchParams.get('year'));
+const ctx = yearContext(year);
+const typeFilter = Astro.url.searchParams.get('type') || '';
+const monthRaw = Astro.url.searchParams.get('month') || '';
+const parsedMonth = Number.parseInt(monthRaw, 10);
+const monthNum = Number.isFinite(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12 ? parsedMonth : null;
+const monthFilter = monthNum ? String(monthNum) : '';
+const entries = await getHistoryEntries(env.DB, year, typeFilter, monthNum);
+const otEntries = await getHistoryOvertime(env.DB, year, monthNum);
+const otEarned = otEntries.filter((e) => e.type !== 'taken').reduce((sum, e) => sum + Number(e.hours), 0);
+const otTaken = otEntries.filter((e) => e.type === 'taken').reduce((sum, e) => sum + Number(e.hours), 0);
+const otBalance = otEarned - otTaken;
+const vacDays = entries.filter((e) => e.type === 'vacation').length;
+const hoCnt = entries.filter((e) => e.type === 'home_office').length;
+const csrf = Astro.locals.session?.csrf || '';
+const fmtHours = (n: number) => Number.isInteger(Number(n)) ? String(Math.trunc(Number(n))) : String(Number(n));
+const jsonForAttr = (value: unknown) => JSON.stringify(value).replace(/</g, '\\u003c').replace(/'/g, '\\u0027');
+---
+<BaseLayout title={`Historia – ${year}`} pageTitle="Historia wpisów" active="history" year={year} yearOptions={ctx.yearOptions} today={ctx.today} csrf={csrf}>
+  <div class="print-header">
+    <h2>Urlopy i nieobecności &mdash; {year}</h2>
+    <p id="printMeta"></p>
+  </div>
+
+  <div class="card filter-bar">
+    <form method="get" action="/history" class="filter-form">
+      <input type="hidden" name="year" value={year}>
+
+      <select name="type" class="field-input field-input--sm" data-auto-submit>
+        <option value="">Wszystkie typy</option>
+        <option value="vacation" selected={typeFilter === 'vacation'}>Urlop</option>
+        <option value="home_office" selected={typeFilter === 'home_office'}>Home Office</option>
+        <option value="okolicznosciowy" selected={typeFilter === 'okolicznosciowy'}>Urlop okolicznościowy</option>
+        <option value="bezplatny" selected={typeFilter === 'bezplatny'}>Urlop bezpłatny</option>
+        <option value="l4" selected={typeFilter === 'l4'}>L4</option>
+        <option value="za_swieto" selected={typeFilter === 'za_swieto'}>Urlop za święto</option>
+      </select>
+
+      <select name="month" class="field-input field-input--sm" data-auto-submit>
+        <option value="">Wszystkie miesiące</option>
+        {MONTH_NAMES.map((name, i) => <option value={i + 1} selected={monthFilter === String(i + 1)}>{name}</option>)}
+      </select>
+
+      {(typeFilter || monthFilter) && (
+        <a href={`/history?year=${year}`} class="btn btn-text btn-sm">
+          <Icon name="close" size="1rem" /> Wyczyść
+        </a>
+      )}
+
+      <div class="export-btns">
+        <a href={`/export/csv?year=${year}&type=${encodeURIComponent(typeFilter)}`} class="btn btn-text btn-sm" title="Pobierz CSV">
+          <Icon name="download" size="1rem" /> CSV
+        </a>
+        <button type="button" data-print class="btn btn-text btn-sm" title="Drukuj / Zapisz PDF">
+          <Icon name="print" size="1rem" /> Drukuj
+        </button>
+      </div>
+      <div class="filter-summary">
+        {vacDays > 0 && (
+          <Chip class="chip--vacation" icon="beach_access">
+            {fmtDays(vacDays)} urlopu
+          </Chip>
+        )}
+        {hoCnt > 0 && (
+          <Chip class="chip--ho" icon="home">
+            {hoCnt} dni HO
+          </Chip>
+        )}
+      </div>
+    </form>
+  </div>
+
+  {entries.length > 0 ? (
+    <div class="card table-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Typ</th>
+            <th class="hide-mobile">Notatka</th>
+            <th class="table-actions">Akcje</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e) => {
+            return (
+              <tr>
+                <td><span class="entry-date-bold">{fmtDatePl(e.date)}</span></td>
+                <td>
+                  <EntryTypeChip type={e.type} />
+                </td>
+                <td class="hide-mobile"><span class="table-notes">{e.notes || '—'}</span></td>
+                <td class="table-actions">
+                  <button class="icon-btn icon-btn--edit" data-edit-entry={jsonForAttr(e)} title="Edytuj">
+                    <Icon name="edit" />
+                  </button>
+                  <button class="icon-btn icon-btn--delete" data-delete-entry-id={e.id} data-delete-label={fmtDatePl(e.date)} title="Usuń">
+                    <Icon name="delete" />
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  ) : (
+    <div class="empty-state">
+      <Icon name="event_busy" class="empty-state-icon" />
+      <p>Brak wpisów dla wybranych filtrów.</p>
+    </div>
+  )}
+
+  {otEntries.length > 0 && (
+    <div class="card table-card overtime-history-card">
+      <div class="table-section-header">
+        <span class="card-title card-title--inline">Nadgodziny</span>
+        <div class="chip-row">
+          {otEarned > 0 && (
+            <Chip class="chip--ot" icon="more_time">
+              +{Math.trunc(otEarned)}h zarobione
+            </Chip>
+          )}
+          {otTaken > 0 && (
+            <Chip class="chip--ot-taken" icon="schedule">
+              -{Math.trunc(otTaken)}h odebrane
+            </Chip>
+          )}
+          <Chip class={otBalance >= 0 ? 'chip--ot' : 'chip--bezp'}>
+            Saldo: {Math.trunc(otBalance)}h
+          </Chip>
+        </div>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Typ</th>
+            <th>Godziny</th>
+            <th class="hide-mobile">Notatka</th>
+            <th class="table-actions">Akcje</th>
+          </tr>
+        </thead>
+        <tbody>
+          {otEntries.map((e) => (
+            <tr>
+              <td><span class="entry-date-bold">{fmtDatePl(e.date)}</span></td>
+              <td>
+                {e.type === 'taken' ? (
+                  <Chip class="chip--ot-taken" icon="schedule">Odebrane</Chip>
+                ) : (
+                  <Chip class="chip--ot" icon="more_time">Zarobione</Chip>
+                )}
+              </td>
+              <td>
+                <Chip class={e.type === 'taken' ? 'chip--ot-taken' : 'chip--ot'}>
+                  {e.type === 'taken' ? `-${fmtHours(e.hours)}` : `+${fmtHours(e.hours)}`}h
+                </Chip>
+              </td>
+              <td class="hide-mobile"><span class="table-notes">{e.notes || '—'}</span></td>
+              <td class="table-actions">
+                <button class="icon-btn icon-btn--delete" data-delete-overtime-id={e.id} data-delete-label={fmtDatePl(e.date)} title="Usuń">
+                  <Icon name="delete" />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</BaseLayout>

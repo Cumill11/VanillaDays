@@ -1,0 +1,17 @@
+---
+interface Props {
+  name: string;
+  class?: string;
+  size?: string;
+}
+
+const { name, class: className = '', size, ...attrs } = Astro.props;
+const sizeClasses: Record<string, string> = {
+  '0.65rem': 'icon--xxs',
+  '0.75rem': 'icon--xs',
+  '0.8rem': 'icon--sm',
+  '1rem': 'icon--md',
+  '1.1rem': 'icon--lg',
+};
+---
+<span class:list={['material-symbols-rounded', size ? sizeClasses[size] : '', className]} {...attrs}>{name}</span>

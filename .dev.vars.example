@@ -1,0 +1,12 @@
+# Local Workers/Astro secrets. Copy to .dev.vars for development.
+# Generate SECRET_KEY with:
+#   openssl rand -hex 32
+SECRET_KEY=
+
+# Login is read from Worker secrets, not from D1.
+# Existing bcrypt hashes are compatible.
+LOGIN_USERNAME=admin
+LOGIN_PASSWORD_HASH=
+
+# For local HTTP development set false. In production keep true through wrangler vars.
+HTTPS_ONLY=false

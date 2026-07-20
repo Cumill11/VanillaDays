@@ -1,0 +1,3 @@
+-- Users are stored in Worker secrets now.
+-- The initial schema no longer creates the users table; this migration is kept
+-- as a no-op so already-deployed D1 migration history stays consistent.

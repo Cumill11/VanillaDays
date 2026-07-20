@@ -1,0 +1,58 @@
+---
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+import { getOrCreateConfig } from '../lib/db';
+import { fmtDays, parseYear, yearContext } from '../lib/dates';
+
+const year = parseYear(Astro.url.searchParams.get('year'));
+const ctx = yearContext(year);
+const config = await getOrCreateConfig(env.DB, year);
+const csrf = Astro.locals.session?.csrf || '';
+const vacTotal = Number(config.vacation_limit) + Number(config.vacation_carried_over);
+---
+<BaseLayout title={`Ustawienia – ${year}`} pageTitle={`Ustawienia ${year}`} active="settings" year={year} yearOptions={ctx.yearOptions} today={ctx.today} csrf={csrf}>
+  <div class="settings-shell">
+    <div class="card">
+      <div class="card-title">Limity dni</div>
+      <form data-settings-form data-ajax-url={`/config/${year}/save`} data-ajax-target="#save-feedback" class="settings-form">
+        <input type="hidden" name="csrf_token" value={csrf}>
+        <div class="field">
+          <label class="field-label">Limit urlopu (dni)</label>
+          <input type="number" name="vacation_limit" class="field-input" value={Math.trunc(Number(config.vacation_limit))} min="0" max="100" step="1">
+          <span class="field-hint">Ustawowy limit na rok (zwykle 26 dni)</span>
+        </div>
+
+        <div class="field">
+          <label class="field-label">
+            <Icon name="move_down" class="field-label-icon" size="1rem" />
+            Dni przeniesione z {year - 1}
+          </label>
+          <input type="number" name="vacation_carried_over" class="field-input" value={Math.trunc(Number(config.vacation_carried_over))} min="0" max="50" step="1">
+          <span class="field-hint">Ustaw ręcznie niewykorzystane dni z poprzedniego roku</span>
+        </div>
+
+        {Number(config.vacation_carried_over) > 0 && (
+          <div class="info-box">
+            <Icon name="info" size="1rem" />
+            Łączna pula urlopu: <strong>{fmtDays(vacTotal)}</strong>
+            ({fmtDays(Number(config.vacation_limit))} + {fmtDays(Number(config.vacation_carried_over))} przeniesione)
+          </div>
+        )}
+
+        <div class="field">
+          <label class="field-label">Limit Home Office (dni)</label>
+          <input type="number" name="ho_limit" class="field-input" value={Math.trunc(Number(config.ho_limit))} min="0" max="260" step="1">
+          <span class="field-hint">HO nie przechodzi na kolejny rok</span>
+        </div>
+
+        <div id="save-feedback"></div>
+
+        <button type="submit" class="btn btn-filled settings-submit">
+          <Icon name="save" size="1.1rem" />
+          Zapisz ustawienia
+        </button>
+      </form>
+    </div>
+  </div>
+</BaseLayout>

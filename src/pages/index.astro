@@ -1,0 +1,177 @@
+---
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Chip from '../components/Chip.astro';
+import Icon from '../components/Icon.astro';
+import { getBalance, getRecentEntries, getStats, getWarnings } from '../lib/db';
+import { fmtDatePl, fmtDays, parseYear, yearContext } from '../lib/dates';
+import { getLeaveTypeMeta } from '../lib/leaveTypes';
+
+const year = parseYear(Astro.url.searchParams.get('year'));
+const ctx = yearContext(year);
+const balance = await getBalance(env.DB, year);
+const stats = await getStats(env.DB, year);
+const warnings = await getWarnings(env.DB, year, balance);
+const recent = await getRecentEntries(env.DB, year);
+const csrf = Astro.locals.session?.csrf || '';
+---
+<BaseLayout title={`Pulpit – ${year}`} pageTitle={`Podsumowanie ${year}`} active="dashboard" year={year} yearOptions={ctx.yearOptions} today={ctx.today} csrf={csrf}>
+  <script slot="scripts" src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+
+  {warnings.length > 0 && (
+    <div class="warnings-list">
+      {warnings.map(([lvl, title, msg]) => (
+        <div class={`warning-item warning-item--${lvl}`}>
+          <Icon name={lvl === 'error' ? 'error' : lvl === 'warning' ? 'warning' : 'info'} class="warning-icon" />
+          <div>
+            <strong>{title}</strong>
+            <span>{msg}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+
+  <div class="cards-row">
+    <div class="balance-card balance-card--vacation">
+      <div class="bc-header">
+        <span class="bc-label">URLOP</span>
+        <Icon name="beach_access" class="bc-icon" />
+      </div>
+      <div class:list={['bc-remaining', { 'bc-remaining--critical': balance.vacation.remaining <= 1, 'bc-remaining--low': balance.vacation.remaining > 1 && balance.vacation.remaining <= 3 }]}>
+        {fmtDays(balance.vacation.remaining)}
+      </div>
+      <div class="bc-sub">pozostało</div>
+      <div class="progress-bar">
+        <div class="progress-fill progress-fill--vacation" style={`width:${balance.vacation.pct}%`}></div>
+      </div>
+      <div class="bc-footer">
+        <span>{fmtDays(balance.vacation.used)} z {fmtDays(balance.vacation.total)}</span>
+        {balance.vacation.carried_over > 0 && (
+          <Chip class="chip--vacation" icon="move_down" iconSize="0.75rem">
+            +{fmtDays(balance.vacation.carried_over)} przeniesione
+          </Chip>
+        )}
+      </div>
+    </div>
+
+    <div class="balance-card balance-card--overtime" data-overtime-card>
+      <div class="bc-header">
+        <span class="bc-label">NADGODZINY</span>
+        <Icon name="more_time" class="bc-icon" />
+      </div>
+      <div class:list={['bc-remaining', { 'bc-remaining--critical': balance.overtime_balance < 0, 'bc-remaining--low': balance.overtime_balance >= 0 && balance.overtime_balance <= 4 }]}>
+        {Math.trunc(balance.overtime_balance)}h
+      </div>
+      <div class="bc-sub">saldo nadgodzin</div>
+      <div class="bc-footer bc-footer--compact">
+        <button type="button" class="chip chip--ot" data-overtime-mode="earned">
+          <Icon name="add" size="0.75rem" />
+          Zarobiłem
+        </button>
+        <button type="button" class="chip chip--ot-taken" data-overtime-mode="taken">
+          <Icon name="remove" size="0.75rem" />
+          Odebrałem
+        </button>
+      </div>
+      <div class="overtime-form-wrap" data-overtime-form-wrap hidden>
+        <form action="/overtime/save" method="post" data-ajax-form>
+          <input type="hidden" name="type" data-overtime-type>
+          <input type="hidden" name="csrf_token" value={csrf}>
+          <div class="overtime-form-row">
+            <div class="field overtime-field overtime-field--date">
+              <label class="field-label field-label--compact">Data</label>
+              <input type="date" name="date" class="field-input field-input--sm" data-today required>
+            </div>
+            <div class="field overtime-field overtime-field--hours">
+              <label class="field-label field-label--compact">Godziny</label>
+              <input type="number" name="hours" step="0.5" min="0.5" class="field-input field-input--sm" placeholder="np. 4" required>
+            </div>
+            <div class="field overtime-field overtime-field--notes">
+              <label class="field-label field-label--compact">Notatka</label>
+              <input type="text" name="notes" class="field-input field-input--sm" placeholder="opcjonalnie">
+            </div>
+            <button type="submit" class="btn btn-filled btn-sm overtime-submit">Zapisz</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="balance-card balance-card--ho">
+      <div class="bc-header">
+        <span class="bc-label">HOME OFFICE</span>
+        <Icon name="home" class="bc-icon" />
+      </div>
+      <div class:list={['bc-remaining', { 'bc-remaining--critical': balance.home_office.remaining <= 1, 'bc-remaining--low': balance.home_office.remaining > 1 && balance.home_office.remaining <= 3 }]}>
+        {balance.home_office.remaining}
+      </div>
+      <div class="bc-sub">dni pozostało</div>
+      <div class="progress-bar">
+        <div class="progress-fill progress-fill--ho" style={`width:${balance.home_office.pct}%`}></div>
+      </div>
+      <div class="bc-footer">
+        <span>{balance.home_office.used} z {balance.home_office.limit} dni</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card other-leaves-card">
+    <div class="card-title">Pozostałe nieobecności {year}</div>
+    <div class="other-leaves-grid">
+      <div class="ol-item">
+        <div class="ol-icon ol-icon--okol"><Icon name="celebration" /></div>
+        <div class="ol-body"><span class="ol-label">Urlop okolicznościowy</span><span class="ol-sub">max {balance.okolicznosciowy.limit} dni/rok</span></div>
+        <div class="ol-count"><span class="ol-used ol-used--okol">{balance.okolicznosciowy.used}</span><span class="ol-limit">/ {balance.okolicznosciowy.limit}</span></div>
+        <div class="ol-progress">
+          <div class="progress-bar progress-bar--full"><div class="progress-fill progress-fill--okol" style={`width:${balance.okolicznosciowy.pct}%`}></div></div>
+          {balance.okolicznosciowy.remaining === 0 && <span class="ol-badge ol-badge--warn">Limit wyczerpany</span>}
+        </div>
+      </div>
+      <div class="ol-item">
+        <div class="ol-icon ol-icon--bezp"><Icon name="money_off" /></div>
+        <div class="ol-body"><span class="ol-label">Urlop bezpłatny</span><span class="ol-sub">bez limitu</span></div>
+        <div class="ol-count"><span class="ol-used ol-used--bezp">{balance.bezplatny.used}</span><span class="ol-limit">dni</span></div>
+        <div class="ol-progress"></div>
+      </div>
+      <div class="ol-item">
+        <div class="ol-icon ol-icon--l4"><Icon name="medical_services" /></div>
+        <div class="ol-body"><span class="ol-label">L4 / Zwolnienie lekarskie</span><span class="ol-sub">nie wlicza się do urlopu</span></div>
+        <div class="ol-count"><span class="ol-used ol-used--l4">{balance.l4.used}</span><span class="ol-limit">dni</span></div>
+        <div class="ol-progress"></div>
+      </div>
+      <div class="ol-item">
+        <div class="ol-icon ol-icon--za"><Icon name="event_repeat" /></div>
+        <div class="ol-body"><span class="ol-label">Urlop za święto</span><span class="ol-sub">nie wlicza się do urlopu</span></div>
+        <div class="ol-count"><span class="ol-used ol-used--za">{balance.za_swieto.used}</span><span class="ol-limit">dni</span></div>
+        <div class="ol-progress"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card chart-card">
+    <div class="card-title">Rozkład miesięczny</div>
+    <div class="chart-wrap">
+      <canvas id="monthlyChart" data-stats={JSON.stringify(stats)}></canvas>
+    </div>
+  </div>
+
+  {recent.length > 0 && (
+    <div class="card">
+      <div class="card-title">Ostatnie wpisy</div>
+      <div class="entry-list">
+        {recent.map((e) => (
+          <div class="entry-row">
+            <span class={`entry-dot entry-dot--${e.type}`}></span>
+            <div class="entry-info">
+              <span class="entry-date">{fmtDatePl(e.date)}</span>
+              {e.notes && <span class="entry-notes">{e.notes}</span>}
+            </div>
+            <div class="entry-days">
+              <span class={`entry-days-val entry-days-val--${e.type}`}>{getLeaveTypeMeta(e.type).shortLabel}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</BaseLayout>
