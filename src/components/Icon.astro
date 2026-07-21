@@ -1,17 +1,87 @@
 ---
+/**
+ * Ikony aplikacji. Nazwy semantyczne są mapowane na komponenty Lucide w jednym
+ * miejscu — reszta kodu nie wie, jaka biblioteka stoi pod spodem.
+ *
+ * Ikony są wstawiane jako inline SVG podczas budowania, więc strona nie pobiera
+ * żadnego fontu ani arkusza z zewnątrz (wymóg CSP `default-src 'self'`).
+ */
+import {
+  ArrowDown,
+  BanknoteX,
+  Calendar,
+  CalendarCheck,
+  CalendarDays,
+  CalendarOff,
+  CalendarSync,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  Clock,
+  Download,
+  History,
+  House,
+  Info,
+  LayoutDashboard,
+  LogOut,
+  Minus,
+  PartyPopper,
+  Pencil,
+  Plus,
+  Printer,
+  Save,
+  Settings,
+  Stethoscope,
+  Timer,
+  Trash2,
+  TriangleAlert,
+  Umbrella,
+  X,
+} from "@lucide/astro";
+
+const ICONS = {
+  add: Plus,
+  beach_access: Umbrella,
+  calendar_month: CalendarDays,
+  celebration: PartyPopper,
+  chevron_left: ChevronLeft,
+  chevron_right: ChevronRight,
+  close: X,
+  dashboard: LayoutDashboard,
+  delete: Trash2,
+  download: Download,
+  edit: Pencil,
+  error: CircleAlert,
+  event: Calendar,
+  event_busy: CalendarOff,
+  event_repeat: CalendarSync,
+  history: History,
+  home: House,
+  info: Info,
+  logout: LogOut,
+  medical_services: Stethoscope,
+  money_off: BanknoteX,
+  more_time: Timer,
+  move_down: ArrowDown,
+  print: Printer,
+  remove: Minus,
+  save: Save,
+  schedule: Clock,
+  settings: Settings,
+  today: CalendarCheck,
+  warning: TriangleAlert,
+} as const;
+
+export type IconName = keyof typeof ICONS;
+
 interface Props {
-  name: string;
+  name: IconName | string;
+  size?: number;
   class?: string;
-  size?: string;
 }
 
-const { name, class: className = '', size, ...attrs } = Astro.props;
-const sizeClasses: Record<string, string> = {
-  '0.65rem': 'icon--xxs',
-  '0.75rem': 'icon--xs',
-  '0.8rem': 'icon--sm',
-  '1rem': 'icon--md',
-  '1.1rem': 'icon--lg',
-};
+const { name, size = 18, class: className = "" } = Astro.props;
+const Glyph = ICONS[name as IconName] ?? Calendar;
 ---
-<span class:list={['material-symbols-rounded', size ? sizeClasses[size] : '', className]} {...attrs}>{name}</span>
+
+<Glyph size={size} class:list={["icon", className]} aria-hidden="true" />

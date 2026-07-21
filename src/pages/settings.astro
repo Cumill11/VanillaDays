@@ -1,55 +1,118 @@
 ---
-import { env } from 'cloudflare:workers';
-import BaseLayout from '../layouts/BaseLayout.astro';
-import Icon from '../components/Icon.astro';
-import { getOrCreateConfig } from '../lib/db';
-import { fmtDays, parseYear, yearContext } from '../lib/dates';
+import { env } from "cloudflare:workers";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Icon from "@/components/Icon.astro";
+import { getOrCreateConfig } from "@/lib/db";
+import { fmtDays, parseYear, yearContext } from "@/lib/dates";
 
-const year = parseYear(Astro.url.searchParams.get('year'));
+const year = parseYear(Astro.url.searchParams.get("year"));
 const ctx = yearContext(year);
+
+function bounded(value: FormDataEntryValue | null, fallback: number, min: number, max: number) {
+  const parsed = Number(value ?? fallback);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.round(Math.max(min, Math.min(max, parsed)));
+}
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  await getOrCreateConfig(env.DB, year);
+  await env.DB.prepare(
+    `UPDATE year_config
+     SET vacation_limit = ?, ho_limit = ?, vacation_carried_over = ?
+     WHERE year = ?`,
+  )
+    .bind(
+      bounded(form.get("vacation_limit"), 26, 0, 100),
+      bounded(form.get("ho_limit"), 24, 0, 260),
+      bounded(form.get("vacation_carried_over"), 0, 0, 50),
+      year,
+    )
+    .run();
+  return Astro.redirect(`/settings?year=${year}&saved=1`, 303);
+}
+
 const config = await getOrCreateConfig(env.DB, year);
-const csrf = Astro.locals.session?.csrf || '';
-const vacTotal = Number(config.vacation_limit) + Number(config.vacation_carried_over);
+const carriedOver = Number(config.vacation_carried_over);
+const vacTotal = Number(config.vacation_limit) + carriedOver;
+const saved = Astro.url.searchParams.has("saved");
 ---
-<BaseLayout title={`Ustawienia – ${year}`} pageTitle={`Ustawienia ${year}`} active="settings" year={year} yearOptions={ctx.yearOptions} today={ctx.today} csrf={csrf}>
+
+<BaseLayout
+  title={`Ustawienia – ${year}`}
+  pageTitle={`Ustawienia ${year}`}
+  active="settings"
+  year={year}
+  yearOptions={ctx.yearOptions}
+  today={ctx.today}
+>
   <div class="settings-shell">
     <div class="card">
       <div class="card-title">Limity dni</div>
-      <form data-settings-form data-ajax-url={`/config/${year}/save`} data-ajax-target="#save-feedback" class="settings-form">
-        <input type="hidden" name="csrf_token" value={csrf}>
+
+      {saved && <div class="alert alert--success">Zapisano ustawienia.</div>}
+
+      <form method="post" class="settings-form">
         <div class="field">
-          <label class="field-label">Limit urlopu (dni)</label>
-          <input type="number" name="vacation_limit" class="field-input" value={Math.trunc(Number(config.vacation_limit))} min="0" max="100" step="1">
+          <label class="field-label" for="vacation_limit">Limit urlopu (dni)</label>
+          <input
+            type="number"
+            id="vacation_limit"
+            name="vacation_limit"
+            class="field-input"
+            value={Math.trunc(Number(config.vacation_limit))}
+            min="0"
+            max="100"
+            step="1"
+          />
           <span class="field-hint">Ustawowy limit na rok (zwykle 26 dni)</span>
         </div>
 
         <div class="field">
-          <label class="field-label">
-            <Icon name="move_down" class="field-label-icon" size="1rem" />
+          <label class="field-label" for="vacation_carried_over">
+            <Icon name="move_down" size={16} />
             Dni przeniesione z {year - 1}
           </label>
-          <input type="number" name="vacation_carried_over" class="field-input" value={Math.trunc(Number(config.vacation_carried_over))} min="0" max="50" step="1">
+          <input
+            type="number"
+            id="vacation_carried_over"
+            name="vacation_carried_over"
+            class="field-input"
+            value={Math.trunc(carriedOver)}
+            min="0"
+            max="50"
+            step="1"
+          />
           <span class="field-hint">Ustaw ręcznie niewykorzystane dni z poprzedniego roku</span>
         </div>
 
-        {Number(config.vacation_carried_over) > 0 && (
-          <div class="info-box">
-            <Icon name="info" size="1rem" />
-            Łączna pula urlopu: <strong>{fmtDays(vacTotal)}</strong>
-            ({fmtDays(Number(config.vacation_limit))} + {fmtDays(Number(config.vacation_carried_over))} przeniesione)
-          </div>
-        )}
+        {
+          carriedOver > 0 && (
+            <div class="info-box">
+              <Icon name="info" size={16} />
+              Łączna pula urlopu: <strong>{fmtDays(vacTotal)}</strong>(
+              {fmtDays(Number(config.vacation_limit))} + {fmtDays(carriedOver)} przeniesione)
+            </div>
+          )
+        }
 
         <div class="field">
-          <label class="field-label">Limit Home Office (dni)</label>
-          <input type="number" name="ho_limit" class="field-input" value={Math.trunc(Number(config.ho_limit))} min="0" max="260" step="1">
+          <label class="field-label" for="ho_limit">Limit Home Office (dni)</label>
+          <input
+            type="number"
+            id="ho_limit"
+            name="ho_limit"
+            class="field-input"
+            value={Math.trunc(Number(config.ho_limit))}
+            min="0"
+            max="260"
+            step="1"
+          />
           <span class="field-hint">HO nie przechodzi na kolejny rok</span>
         </div>
 
-        <div id="save-feedback"></div>
-
         <button type="submit" class="btn btn-filled settings-submit">
-          <Icon name="save" size="1.1rem" />
+          <Icon name="save" size={18} />
           Zapisz ustawienia
         </button>
       </form>

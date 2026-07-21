@@ -1,16 +1,17 @@
 ---
-import Icon from './Icon.astro';
+import Icon from "@/components/Icon.astro";
 
 interface Props {
   class?: string;
   icon?: string;
-  iconSize?: string;
+  iconSize?: number;
   title?: string;
 }
 
-const { class: className = '', icon, iconSize = '0.8rem', title } = Astro.props;
+const { class: className = "", icon, iconSize = 13, title } = Astro.props;
 ---
-<span class:list={['chip', className]} title={title}>
+
+<span class:list={["chip", className]} title={title}>
   {icon && <Icon name={icon} size={iconSize} />}
   <slot />
 </span>

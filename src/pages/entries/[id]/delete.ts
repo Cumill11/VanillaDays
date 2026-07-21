@@ -1,12 +1,12 @@
-import { env } from 'cloudflare:workers';
-import type { APIRoute } from 'astro';
-import { requireCsrf } from '../../../lib/security';
+import type { APIRoute } from "astro";
+import { env } from "cloudflare:workers";
+import { safeNext } from "@/lib/auth";
 
-export const POST: APIRoute = async ({ params, request, locals }) => {
-  const csrfError = await requireCsrf(locals.session, request);
-  if (csrfError) return csrfError;
-  const id = Number.parseInt(params.id || '', 10);
-  if (!Number.isFinite(id)) return new Response('Nieprawidłowy wpis', { status: 400 });
-  await env.DB.prepare('DELETE FROM leave_entries WHERE id = ?').bind(id).run();
-  return new Response(null, { status: 204, headers: { 'HX-Refresh': 'true' } });
+export const POST: APIRoute = async ({ params, request, redirect }) => {
+  const form = await request.formData();
+  const back = safeNext(String(form.get("next") || "/"));
+  const id = Number.parseInt(params.id || "", 10);
+  if (!Number.isFinite(id)) return new Response("Nieprawidłowy wpis", { status: 400 });
+  await env.DB.prepare("DELETE FROM leave_entries WHERE id = ?").bind(id).run();
+  return redirect(back, 303);
 };

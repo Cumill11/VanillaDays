@@ -1,86 +1,101 @@
 ---
-import { env } from 'cloudflare:workers';
-import Icon from '../components/Icon.astro';
-import { checkPassword, checkRateLimit, clearFailures, recordFailure } from '../lib/db';
-import { createSessionCookie, getSessionCookie, isHttpsOnly, safeNext, setSession, verifySessionCookie } from '../lib/security';
+import "@/styles/style.css";
+import { env } from "cloudflare:workers";
+import Icon from "@/components/Icon.astro";
+import {
+  createSession,
+  isHttpsOnly,
+  passwordMatches,
+  safeNext,
+  setSessionCookie,
+} from "@/lib/auth";
 
-let error: string | null = null;
-let nextUrl = safeNext(Astro.url.searchParams.get('next'));
+if (Astro.locals.authenticated) return Astro.redirect("/", 303);
 
-const existing = await verifySessionCookie(getSessionCookie(Astro.request), env.SECRET_KEY);
-if (existing) return Astro.redirect('/', 303);
+let error = "";
+let nextUrl = safeNext(Astro.url.searchParams.get("next"));
 
-if (Astro.request.method === 'POST') {
+if (Astro.request.method === "POST") {
   const form = await Astro.request.formData();
-  nextUrl = safeNext(String(form.get('next') || ''));
-  const username = String(form.get('username') || '').trim();
-  const password = String(form.get('password') || '');
-  const ip = Astro.request.headers.get('CF-Connecting-IP')
-    || Astro.request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim()
-    || Astro.clientAddress
-    || '127.0.0.1';
-  const rateKey = ip;
-  const configuredUsername = String(env.LOGIN_USERNAME || '').trim();
-  const configuredHash = String(env.LOGIN_PASSWORD_HASH || '').trim();
+  nextUrl = safeNext(String(form.get("next") || ""));
+  const username = String(form.get("username") || "").trim();
+  const password = String(form.get("password") || "");
+  const expectedUser = String(env.ADMIN_USERNAME || "").trim();
+  const expectedPassword = String(env.ADMIN_PASSWORD || "");
 
-  const allowed = await checkRateLimit(env.DB, rateKey);
-
-  if (!allowed.allowed) {
-    error = `Za dużo nieudanych prób. Spróbuj za ${Math.floor(allowed.wait / 60)} min.`;
+  if (!expectedUser || !expectedPassword) {
+    error = "Logowanie nie jest skonfigurowane.";
+  } else if (
+    passwordMatches(username, expectedUser) &&
+    passwordMatches(password, expectedPassword)
+  ) {
+    const headers = new Headers({ Location: nextUrl });
+    setSessionCookie(headers, await createSession(env.SECRET_KEY), isHttpsOnly(env.HTTPS_ONLY));
+    return new Response(null, { status: 303, headers });
   } else {
-    const ok = Boolean(configuredUsername && configuredHash)
-      && username === configuredUsername
-      && await checkPassword(password, configuredHash);
-
-    if (ok) {
-      await clearFailures(env.DB, rateKey);
-      const headers = new Headers({ Location: nextUrl });
-      const { value } = await createSessionCookie(env.SECRET_KEY);
-      setSession(headers, value, isHttpsOnly(env.HTTPS_ONLY));
-      return new Response(null, { status: 303, headers });
-    }
-
-    const wait = await recordFailure(env.DB, rateKey);
-    error = wait ? `Za dużo nieudanych prób. Spróbuj za ${Math.floor(wait / 60)} min.` : 'Nieprawidłowe hasło.';
+    error = "Nieprawidłowa nazwa użytkownika lub hasło.";
   }
 }
 ---
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang="pl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Logowanie – VanillaDays</title>
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-  <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body class="login-page">
-  <div class="login-card">
-    <div class="login-brand">
-      <img src="/static/logo.svg" alt="VanillaDays" class="login-logo">
-      VanillaDays
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logowanie – VanillaDays</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/static/images/logo.svg" />
+  </head>
+  <body class="login-page">
+    <div class="login-card">
+      <div class="login-brand">
+        <img
+          src="/static/images/logo.svg"
+          alt="VanillaDays"
+          class="login-logo"
+          width="32"
+          height="32"
+        />
+        VanillaDays
+      </div>
+
+      {
+        error && (
+          <div class="login-error">
+            <Icon name="error" size={16} />
+            {error}
+          </div>
+        )
+      }
+
+      <form method="post">
+        <input type="hidden" name="next" value={nextUrl} />
+        <div class="field">
+          <label class="field-label" for="username">Nazwa użytkownika</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            class="field-input"
+            autocomplete="username"
+            required
+            autofocus
+          />
+        </div>
+        <div class="field">
+          <label class="field-label" for="password">Hasło</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            class="field-input"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+        <button type="submit" class="btn btn-filled login-submit">Zaloguj się</button>
+      </form>
     </div>
-
-    {error && (
-      <div class="login-error">
-        <Icon name="error" size="1rem" />
-        {error}
-      </div>
-    )}
-
-    <form method="post">
-      <input type="hidden" name="next" value={nextUrl}>
-      <div class="field">
-        <label class="field-label">Nazwa użytkownika</label>
-        <input type="text" name="username" class="field-input" autofocus autocomplete="username" required>
-      </div>
-      <div class="field">
-        <label class="field-label">Hasło</label>
-        <input type="password" name="password" class="field-input" autocomplete="current-password" required>
-      </div>
-      <button type="submit" class="btn btn-filled login-submit">Zaloguj się</button>
-    </form>
-  </div>
-</body>
+  </body>
 </html>

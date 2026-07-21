@@ -1,12 +1,12 @@
-# Local Workers/Astro secrets. Copy to .dev.vars for development.
-# Generate SECRET_KEY with:
-#   openssl rand -hex 32
+# Sekrety dla lokalnego dev (skopiuj do .dev.vars) i dla `wrangler secret put` na produkcji.
+
+# Klucz podpisujący cookie sesji. Wygeneruj: openssl rand -hex 32
 SECRET_KEY=
 
-# Login is read from Worker secrets, not from D1.
-# Existing bcrypt hashes are compatible.
-LOGIN_USERNAME=admin
-LOGIN_PASSWORD_HASH=
+# Dane logowania do panelu. Oba pola są wymagane — bez nich panel zwraca
+# „Logowanie nie jest skonfigurowane”.
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=
 
-# For local HTTP development set false. In production keep true through wrangler vars.
+# Lokalnie po HTTP ustaw false. Na produkcji zostaje true (patrz vars w wrangler.jsonc).
 HTTPS_ONLY=false

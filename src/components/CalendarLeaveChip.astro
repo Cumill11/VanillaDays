@@ -1,16 +1,30 @@
 ---
-import Icon from './Icon.astro';
-import { getLeaveTypeMeta } from '../lib/leaveTypes';
-import type { LeaveEntry } from '../lib/types';
+import Icon from "@/components/Icon.astro";
+import { getLeaveTypeMeta } from "@/lib/leaveTypes";
+import type { LeaveEntry } from "@/lib/types";
 
 interface Props {
   entry: LeaveEntry;
+  back: string;
 }
 
-const { entry } = Astro.props;
+const { entry, back } = Astro.props;
 const date = entry.date.substring(0, 10);
 const meta = getLeaveTypeMeta(entry.type);
 ---
-<span class:list={['cal-chip', meta.calendarClass]} data-delete-entry-id={entry.id} data-delete-label={date} title={meta.label}>
-  <Icon name={meta.icon} size="0.65rem" />{meta.calendarLabel}
-</span>
+
+<form
+  method="post"
+  action={`/entries/${entry.id}/delete`}
+  class="chip-form"
+  data-confirm={`Usunąć wpis z dnia ${date}?`}
+>
+  <input type="hidden" name="next" value={back} />
+  <button
+    type="submit"
+    class:list={["cal-chip", meta.calendarClass]}
+    title={`${meta.label} — kliknij, aby usunąć`}
+  >
+    <Icon name={meta.icon} size={10} />{meta.calendarLabel}
+  </button>
+</form>

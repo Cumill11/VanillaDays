@@ -1,14 +1,22 @@
 ---
-import { env } from 'cloudflare:workers';
-import BaseLayout from '../layouts/BaseLayout.astro';
-import CalendarLeaveChip from '../components/CalendarLeaveChip.astro';
-import Icon from '../components/Icon.astro';
-import { getEntriesBetween, getOvertimeBetween } from '../lib/db';
-import { getCalendarDays, getPolishHolidays, isoDate, MONTH_NAMES, parseMonth, parseYear, yearContext } from '../lib/dates';
-import type { LeaveEntry, OvertimeEntry } from '../lib/types';
+import { env } from "cloudflare:workers";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import CalendarLeaveChip from "@/components/CalendarLeaveChip.astro";
+import Icon from "@/components/Icon.astro";
+import { getEntriesBetween, getOvertimeBetween } from "@/lib/db";
+import {
+  getCalendarDays,
+  getPolishHolidays,
+  isoDate,
+  MONTH_NAMES,
+  parseMonth,
+  parseYear,
+  yearContext,
+} from "@/lib/dates";
+import type { LeaveEntry, OvertimeEntry } from "@/lib/types";
 
-const year = parseYear(Astro.url.searchParams.get('year'));
-const month = parseMonth(Astro.url.searchParams.get('month'));
+const year = parseYear(Astro.url.searchParams.get("year"));
+const month = parseMonth(Astro.url.searchParams.get("month"));
 const ctx = yearContext(year);
 const days = getCalendarDays(year, month);
 const start = isoDate(days[0]);
@@ -16,7 +24,8 @@ const end = isoDate(days[days.length - 1]);
 const entries = await getEntriesBetween(env.DB, start, end);
 const overtime = await getOvertimeBetween(env.DB, start, end);
 const holidays = getPolishHolidays(year);
-const csrf = Astro.locals.session?.csrf || '';
+const back = `/calendar?year=${year}&month=${month}`;
+
 const entriesByDate = new Map<string, LeaveEntry[]>();
 const overtimeByDate = new Map<string, OvertimeEntry[]>();
 for (const entry of entries) {
@@ -27,101 +36,144 @@ for (const entry of overtime) {
   const key = entry.date.substring(0, 10);
   overtimeByDate.set(key, [...(overtimeByDate.get(key) || []), entry]);
 }
+
 const prevMonth = month > 1 ? month - 1 : 12;
 const prevYear = month > 1 ? year : year - 1;
 const nextMonth = month < 12 ? month + 1 : 1;
 const nextYear = month < 12 ? year : year + 1;
-const fmtHours = (n: number) => Number.isInteger(Number(n)) ? String(Math.trunc(Number(n))) : String(Number(n));
+
+const LEAVE_ORDER = ["vacation", "home_office", "okolicznosciowy", "bezplatny", "l4", "za_swieto"];
+const fmtHours = (value: number) =>
+  Number.isInteger(Number(value)) ? String(Math.trunc(Number(value))) : String(Number(value));
 ---
-<BaseLayout title={`Kalendarz – ${MONTH_NAMES[month - 1]} ${year}`} pageTitle="Kalendarz" active="calendar" year={year} yearOptions={ctx.yearOptions} today={ctx.today} csrf={csrf}>
+
+<BaseLayout
+  title={`Kalendarz – ${MONTH_NAMES[month - 1]} ${year}`}
+  pageTitle="Kalendarz"
+  active="calendar"
+  year={year}
+  yearOptions={ctx.yearOptions}
+  today={ctx.today}
+>
   <div class="card cal-card">
     <div class="cal-nav">
-      <a href={`/calendar?year=${prevYear}&month=${prevMonth}`} class="icon-btn">
+      <a
+        href={`/calendar?year=${prevYear}&month=${prevMonth}`}
+        class="icon-btn"
+        aria-label="Poprzedni miesiąc"
+      >
         <Icon name="chevron_left" />
       </a>
       <h2 class="cal-month-title">{MONTH_NAMES[month - 1]} {year}</h2>
-      <a href={`/calendar?year=${nextYear}&month=${nextMonth}`} class="icon-btn">
+      <a
+        href={`/calendar?year=${nextYear}&month=${nextMonth}`}
+        class="icon-btn"
+        aria-label="Następny miesiąc"
+      >
         <Icon name="chevron_right" />
       </a>
-      <a href={`/calendar?year=${ctx.today.getFullYear()}&month=${ctx.today.getMonth() + 1}`} class="icon-btn" title="Dzisiaj">
+      <a
+        href={`/calendar?year=${ctx.today.getFullYear()}&month=${ctx.today.getMonth() + 1}`}
+        class="icon-btn"
+        title="Dzisiaj"
+      >
         <Icon name="today" />
       </a>
     </div>
 
     <div class="cal-grid">
-      {['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nie'].map((d, i) => (
-        <div class:list={['cal-weekday', { 'cal-weekday--weekend': i > 4 }]}>{d}</div>
-      ))}
+      {
+        ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nie"].map((label, index) => (
+          <div class:list={["cal-weekday", { "cal-weekday--weekend": index > 4 }]}>{label}</div>
+        ))
+      }
 
-      {days.map((day) => {
-        const dateStr = isoDate(day);
-        const dayEntries = entriesByDate.get(dateStr) || [];
-        const otDay = overtimeByDate.get(dateStr) || [];
-        const vac = dayEntries.filter((e) => e.type === 'vacation');
-        const ho = dayEntries.filter((e) => e.type === 'home_office');
-        const okol = dayEntries.filter((e) => e.type === 'okolicznosciowy');
-        const bezp = dayEntries.filter((e) => e.type === 'bezplatny');
-        const l4 = dayEntries.filter((e) => e.type === 'l4');
-        const za = dayEntries.filter((e) => e.type === 'za_swieto');
-        const inMonth = day.getMonth() + 1 === month;
-        const isToday = dateStr === ctx.todayIso;
-        const isHoliday = dateStr in holidays;
-        const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-        const primaryType = vac.length ? 'vacation' : ho.length ? 'ho' : okol.length ? 'okol' : bezp.length ? 'bezp' : l4.length ? 'l4' : za.length ? 'za_swieto' : '';
+      {
+        days.map((day) => {
+          const dateStr = isoDate(day);
+          const dayEntries = entriesByDate.get(dateStr) || [];
+          const otDay = overtimeByDate.get(dateStr) || [];
+          const inMonth = day.getMonth() + 1 === month;
+          const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+          const isHoliday = dateStr in holidays;
+          const canAdd = inMonth && !isWeekend && dayEntries.length === 0;
+          const firstOfType = LEAVE_ORDER.map((type) =>
+            dayEntries.find((entry) => entry.type === type),
+          ).filter(Boolean) as LeaveEntry[];
+          const primaryType = firstOfType[0]?.type ?? "";
 
-        return (
-          <div
-            class:list={[
-              'cal-day',
-              {
-                'cal-day--out': !inMonth,
-                'cal-day--today': isToday,
-                'cal-day--holiday': isHoliday,
-                'cal-day--weekend': isWeekend,
-                [`cal-day--${primaryType}`]: Boolean(primaryType),
-              },
-            ]}
-            data-date={dateStr}
-            data-in-month={inMonth ? 'true' : 'false'}
-            data-has-entries={dayEntries.length ? 'true' : 'false'}
-          >
-            <span class="cal-day-num">{day.getDate()}</span>
-            {isHoliday && <span class="cal-holiday-label" title={holidays[dateStr]}>{holidays[dateStr]}</span>}
-
-            <div class="cal-chips">
-              {vac[0] && <CalendarLeaveChip entry={vac[0]} />}
-              {ho[0] && <CalendarLeaveChip entry={ho[0]} />}
-              {okol[0] && <CalendarLeaveChip entry={okol[0]} />}
-              {bezp[0] && <CalendarLeaveChip entry={bezp[0]} />}
-              {l4[0] && <CalendarLeaveChip entry={l4[0]} />}
-              {za[0] && <CalendarLeaveChip entry={za[0]} />}
-              {otDay.map((ot) => (
-                <span
-                  class={`cal-chip cal-chip--${ot.type === 'earned' ? 'ot-earned' : 'ot-taken'}`}
-                  data-delete-overtime-id={ot.id}
-                  data-delete-label={dateStr}
-                  title={ot.type === 'earned' ? `${fmtHours(ot.hours)} godz. nadgodzin` : `${fmtHours(ot.hours)} godz. odebranych`}
-                >
-                  <Icon name={ot.type === 'earned' ? 'more_time' : 'schedule'} size="0.65rem" />{ot.type === 'earned' ? `+${fmtHours(ot.hours)}h` : `-${fmtHours(ot.hours)}h`}
+          return (
+            <div
+              class:list={[
+                "cal-day",
+                {
+                  "cal-day--out": !inMonth,
+                  "cal-day--today": dateStr === ctx.todayIso,
+                  "cal-day--holiday": isHoliday,
+                  "cal-day--weekend": isWeekend,
+                  "cal-day--clickable": canAdd,
+                  [`cal-day--${primaryType}`]: Boolean(primaryType),
+                },
+              ]}
+              data-date={dateStr}
+              data-add-entry={canAdd ? "" : undefined}
+            >
+              <span class="cal-day-num">{day.getDate()}</span>
+              {isHoliday && (
+                <span class="cal-holiday-label" title={holidays[dateStr]}>
+                  {holidays[dateStr]}
                 </span>
-              ))}
+              )}
+
+              <div class="cal-chips">
+                {firstOfType.map((entry) => (
+                  <CalendarLeaveChip entry={entry} back={back} />
+                ))}
+                {otDay.map((ot) => (
+                  <form
+                    method="post"
+                    action={`/overtime/${ot.id}/delete`}
+                    class="chip-form"
+                    data-confirm={`Usunąć wpis nadgodzin z dnia ${dateStr}?`}
+                  >
+                    <input type="hidden" name="next" value={back} />
+                    <button
+                      type="submit"
+                      class={`cal-chip cal-chip--${ot.type === "earned" ? "ot-earned" : "ot-taken"}`}
+                      title={
+                        ot.type === "earned"
+                          ? `${fmtHours(ot.hours)} godz. nadgodzin — kliknij, aby usunąć`
+                          : `${fmtHours(ot.hours)} godz. odebranych — kliknij, aby usunąć`
+                      }
+                    >
+                      <Icon name={ot.type === "earned" ? "more_time" : "schedule"} size={10} />
+                      {ot.type === "earned" ? `+${fmtHours(ot.hours)}h` : `-${fmtHours(ot.hours)}h`}
+                    </button>
+                  </form>
+                ))}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })
+      }
     </div>
 
     <div class="cal-legend">
       <span class="legend-item"><span class="legend-dot legend-dot--vacation"></span> Urlop</span>
       <span class="legend-item"><span class="legend-dot legend-dot--ho"></span> HO</span>
-      <span class="legend-item"><span class="legend-dot legend-dot--okol"></span> Okolicznościowy</span>
+      <span class="legend-item"
+        ><span class="legend-dot legend-dot--okol"></span> Okolicznościowy</span
+      >
       <span class="legend-item"><span class="legend-dot legend-dot--bezp"></span> Bezpłatny</span>
       <span class="legend-item"><span class="legend-dot legend-dot--l4"></span> L4</span>
       <span class="legend-item"><span class="legend-dot legend-dot--today"></span> Dzisiaj</span>
       <span class="legend-item"><span class="legend-dot legend-dot--holiday"></span> Święto</span>
       <span class="legend-item"><span class="legend-dot legend-dot--za"></span> Za święto</span>
-      <span class="legend-item"><span class="legend-dot legend-dot--ot-earned"></span> Nadgodziny</span>
-      <span class="legend-item"><span class="legend-dot legend-dot--ot-taken"></span> Odebrane</span>
+      <span class="legend-item"
+        ><span class="legend-dot legend-dot--ot-earned"></span> Nadgodziny</span
+      >
+      <span class="legend-item"><span class="legend-dot legend-dot--ot-taken"></span> Odebrane</span
+      >
       <span class="legend-hint">Kliknij wolny dzień = dodaj &nbsp;·&nbsp; kliknij wpis = usuń</span>
     </div>
   </div>

@@ -1,0 +1,11 @@
+---
+import ErrorPage from "@/components/ErrorPage.astro";
+
+Astro.response.status = 404;
+---
+
+<ErrorPage
+  code={404}
+  title="Nie znaleziono strony"
+  message="Strona, której szukasz, nie istnieje lub została przeniesiona."
+/>

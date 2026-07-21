@@ -1,5 +1,6 @@
-export type LeaveType = 'vacation' | 'home_office' | 'okolicznosciowy' | 'bezplatny' | 'l4' | 'za_swieto';
-export type OvertimeType = 'earned' | 'taken';
+export type LeaveType =
+  "vacation" | "home_office" | "okolicznosciowy" | "bezplatny" | "l4" | "za_swieto";
+export type OvertimeType = "earned" | "taken";
 
 export interface YearConfig {
   id: number;

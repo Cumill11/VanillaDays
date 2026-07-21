@@ -1,19 +1,42 @@
 export const MONTH_NAMES = [
-  'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
-  'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień',
+  "Styczeń",
+  "Luty",
+  "Marzec",
+  "Kwiecień",
+  "Maj",
+  "Czerwiec",
+  "Lipiec",
+  "Sierpień",
+  "Wrzesień",
+  "Październik",
+  "Listopad",
+  "Grudzień",
 ];
 
-export const MONTH_SHORT = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
-export const WEEKDAY_SHORT = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nie'];
+export const MONTH_SHORT = [
+  "sty",
+  "lut",
+  "mar",
+  "kwi",
+  "maj",
+  "cze",
+  "lip",
+  "sie",
+  "wrz",
+  "paź",
+  "lis",
+  "gru",
+];
+export const WEEKDAY_SHORT = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nie"];
 
-const pad = (n: number) => String(n).padStart(2, '0');
+const pad = (n: number) => String(n).padStart(2, "0");
 
 export function isoDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export function parseISODate(s: string): Date {
-  const [y, m, d] = s.split('-').map(Number);
+  const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d);
 }
 
@@ -22,15 +45,16 @@ export function todayLocal(): Date {
 }
 
 export function parseYear(value: string | null | undefined, fallback?: number): number {
-  const parsed = Number.parseInt(value || '', 10);
+  const parsed = Number.parseInt(value || "", 10);
   const today = todayLocal();
   if (!Number.isFinite(parsed)) return fallback ?? today.getFullYear();
   return Math.max(2020, Math.min(parsed, today.getFullYear() + 2));
 }
 
 export function parseMonth(value: string | null | undefined): number {
-  const parsed = Number.parseInt(value || '', 10);
-  const month = Number.isFinite(parsed) && parsed >= 1 && parsed <= 12 ? parsed : todayLocal().getMonth() + 1;
+  const parsed = Number.parseInt(value || "", 10);
+  const month =
+    Number.isFinite(parsed) && parsed >= 1 && parsed <= 12 ? parsed : todayLocal().getMonth() + 1;
   return month;
 }
 
@@ -60,8 +84,8 @@ export function fmtDays(days: number, wpd = 8): string {
 }
 
 export function fmtDatePl(date: string | Date | null | undefined): string {
-  if (!date) return '';
-  const d = typeof date === 'string' ? parseISODate(date.substring(0, 10)) : date;
+  if (!date) return "";
+  const d = typeof date === "string" ? parseISODate(date.substring(0, 10)) : date;
   return `${WEEKDAY_SHORT[(d.getDay() + 6) % 7]}, ${d.getDate()} ${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`;
 }
 
@@ -111,19 +135,19 @@ export function addDays(d: Date, days: number): Date {
 export function getPolishHolidays(year: number): Record<string, string> {
   const e = easterDate(year);
   const hols = new Map<Date, string>([
-    [new Date(year, 0, 1), 'Nowy Rok'],
-    [new Date(year, 0, 6), 'Trzech Króli'],
-    [e, 'Wielkanoc'],
-    [addDays(e, 1), 'Lany Poniedziałek'],
-    [new Date(year, 4, 1), 'Święto Pracy'],
-    [new Date(year, 4, 3), 'Święto Konstytucji'],
-    [addDays(e, 49), 'Zielone Świątki'],
-    [addDays(e, 60), 'Boże Ciało'],
-    [new Date(year, 7, 15), 'Wniebowzięcie NMP'],
-    [new Date(year, 10, 1), 'Wszyscy Święci'],
-    [new Date(year, 10, 11), 'Niepodległość'],
-    [new Date(year, 11, 25), 'Boże Narodzenie'],
-    [new Date(year, 11, 26), '2. dzień Bożego Narodzenia'],
+    [new Date(year, 0, 1), "Nowy Rok"],
+    [new Date(year, 0, 6), "Trzech Króli"],
+    [e, "Wielkanoc"],
+    [addDays(e, 1), "Lany Poniedziałek"],
+    [new Date(year, 4, 1), "Święto Pracy"],
+    [new Date(year, 4, 3), "Święto Konstytucji"],
+    [addDays(e, 49), "Zielone Świątki"],
+    [addDays(e, 60), "Boże Ciało"],
+    [new Date(year, 7, 15), "Wniebowzięcie NMP"],
+    [new Date(year, 10, 1), "Wszyscy Święci"],
+    [new Date(year, 10, 11), "Niepodległość"],
+    [new Date(year, 11, 25), "Boże Narodzenie"],
+    [new Date(year, 11, 26), "2. dzień Bożego Narodzenia"],
   ]);
   return Object.fromEntries([...hols.entries()].map(([d, name]) => [isoDate(d), name]));
 }

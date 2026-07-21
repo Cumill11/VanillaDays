@@ -1,92 +1,72 @@
 # VanillaDays
 
-VanillaDays to aplikacja do śledzenia urlopów, Home Office, nieobecności i nadgodzin.
-Aplikacja działa na Astro SSR, Cloudflare Workers i Cloudflare D1.
+Ewidencja urlopów, Home Office, nieobecności i nadgodzin. Astro SSR na Cloudflare
+Workers, dane w D1.
+
+> Instalacja, sekrety, wdrożenie i hasła są opisane raz dla wszystkich trzech
+> projektów w [`../README.md`](../README.md). Tutaj tylko to, co swoiste dla tej aplikacji.
+
+## Czym się różni od pozostałych dwóch
+
+**Cała aplikacja jest prywatna.** Bez zalogowania nie zobaczysz nic poza `/login`
+i `/health`. Nie ma części publicznej ani osobnego panelu — po zalogowaniu masz
+dostęp do wszystkiego.
+
+Z tego wynikają dwie rzeczy:
+
+- **Nic nie jest cache'owane.** Każda odpowiedź dostaje `no-store` i `X-Robots-Tag: noindex`.
+  Portfolio i Stories trzymają strony publiczne w cache krawędziowym; tutaj byłoby to
+  wyciekiem danych.
+- **Nie ma R2.** Aplikacja nie przyjmuje plików, więc jedynym magazynem jest D1.
 
 ## Funkcje
 
-- Pulpit z bilansem urlopu, Home Office, urlopu okolicznościowego i nadgodzin.
-- Kalendarz miesięczny z polskimi świętami.
-- Historia wpisów z filtrami, drukiem i eksportem CSV.
-- Typy wpisów: urlop, Home Office, okolicznościowy, bezpłatny, L4, za święto.
-- Nadgodziny: zarobione i odebrane.
-- Ustawienia limitów rocznych.
-- Własne logowanie: login i bcrypt hash w sekretach Workera, podpisana sesja HttpOnly, CSRF, rate limit prób logowania w D1.
+- Pulpit: bilans urlopu, Home Office, urlopu okolicznościowego i nadgodzin
+- Wykres roczny — czysty CSS, bez biblioteki
+- Kalendarz miesięczny z polskimi świętami
+- Historia wpisów z filtrami, wydrukiem i eksportem CSV
+- Typy wpisów: urlop, Home Office, okolicznościowy, bezpłatny, L4, za święto
+- Nadgodziny zarobione i odebrane
+- Ustawienia limitów rocznych
 
-## Lokalnie
+## Trasy
 
-```bash
-npm install
-cp .dev.vars.example .dev.vars
-```
+| Ścieżka                                  | Rola                           |
+| ---------------------------------------- | ------------------------------ |
+| `/login`, `/health`                      | jedyne publiczne               |
+| `/`                                      | pulpit                         |
+| `/calendar`, `/history`, `/settings`     | pozostałe widoki               |
+| `/entries/save`, `/entries/:id/delete`   | zapis i usuwanie wpisów (POST) |
+| `/overtime/save`, `/overtime/:id/delete` | nadgodziny (POST)              |
+| `/export/csv`                            | eksport historii               |
 
-Uzupełnij `.dev.vars`:
+Zapis idzie POST-em na trasę, która odsyła przekierowanie 303. Eksport CSV
+poprzedza wartości zaczynające się od `=`, `+`, `-` lub `@` apostrofem, żeby arkusz
+nie potraktował ich jak formuły.
 
-```bash
-SECRET_KEY=...
-LOGIN_USERNAME=admin
-LOGIN_PASSWORD_HASH=...
-HTTPS_ONLY=false
-```
+## Zasoby w Cloudflare
 
-Hash hasła możesz wygenerować np. tak:
+| Rodzaj | Nazwa                    |
+| ------ | ------------------------ |
+| Worker | `vanilladays`            |
+| Domena | urlopy.kamilkowalczyk.pl |
+| D1     | `vanilladays`            |
 
-```bash
-node -e "import('bcryptjs').then(async b => console.log(await b.hash(process.argv[1], 12)))" 'twoje-haslo'
-```
+Binding `SESSION` (KV) dokłada automatycznie adapter Cloudflare. Aplikacja go nie
+używa — logowanie opiera się na podpisanym ciasteczku, nie na magazynie sesji.
 
-Uruchom migracje D1 lokalnie:
+## Migracje
 
-```bash
-npm run db:migrate:local
-```
+| Plik                           | Co robi                                                           |
+| ------------------------------ | ----------------------------------------------------------------- |
+| `0001_initial.sql`             | schemat                                                           |
+| `0002_remove_users.sql`        | usuwa tabelę użytkowników po przejściu na jedno konto w sekretach |
+| `0003_drop_login_attempts.sql` | usuwa tabelę po wyłączonym limicie prób logowania                 |
 
-Start aplikacji:
+## Logi
 
-```bash
-npm run build
-npm run preview
-```
-
-## Cloudflare
-
-Ustaw sekret sesji:
-
-```bash
-npx wrangler secret put SECRET_KEY
-```
-
-Ustaw login i hash hasła jako sekrety:
-
-```bash
-npx wrangler secret put LOGIN_USERNAME
-npx wrangler secret put LOGIN_PASSWORD_HASH
-```
-
-Zastosuj migracje D1:
-
-```bash
-npm run db:migrate:remote
-```
-
-Build:
-
-```bash
-npm run build
-```
-
-Deploy:
-
-```bash
-npx wrangler deploy
-```
-
-Workers Logs są włączone natywnie przez `observability` w `wrangler.jsonc`.
-Do podglądu logów na żywo:
+`observability` jest włączone w `wrangler.jsonc`. Podgląd na żywo:
 
 ```bash
 npx wrangler tail
 ```
-
-Jeśli używasz istniejącej bazy D1, wstaw jej `database_id` do `wrangler.jsonc`.
-Bez `database_id` aktualny Wrangler może automatycznie provisionować zasób na koncie Cloudflare.

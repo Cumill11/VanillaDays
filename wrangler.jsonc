@@ -1,37 +1,32 @@
 {
-	"name": "vanilladays",
-	"main": "@astrojs/cloudflare/entrypoints/server",
-	"compatibility_date": "2026-07-20",
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
-	"workers_dev": false,
-	"preview_urls": false,
-	"routes": [
-		{
-			"pattern": "urlopy.kamilkowalczyk.pl",
-			"custom_domain": true
-		}
-	],
-	"assets": {
-		"directory": "./dist"
-	},
-	"observability": {
-		"enabled": true,
-		"head_sampling_rate": 1,
-		"logs": {
-			"invocation_logs": true
-		}
-	},
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "vanilladays",
-			"database_id": "0d0a5a66-aed6-47d7-9389-0cd5e7c28bc9",
-			"migrations_dir": "migrations"
-		}
-	],
-	"vars": {
-		"HTTPS_ONLY": "true"
-	}
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vanilladays",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-07-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "urlopy.kamilkowalczyk.pl",
+      "custom_domain": true,
+    },
+  ],
+  "assets": {
+    "directory": "./dist/client",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "vanilladays",
+      "database_id": "0d0a5a66-aed6-47d7-9389-0cd5e7c28bc9",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "vars": {
+    "HTTPS_ONLY": "true",
+  },
 }
