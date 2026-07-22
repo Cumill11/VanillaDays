@@ -1,6 +1,7 @@
 ---
 import { env } from "cloudflare:workers";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import Field from "@/components/Field.astro";
 import Icon from "@/components/Icon.astro";
 import { getOrCreateConfig } from "@/lib/db";
 import { fmtDays, parseYear, yearContext } from "@/lib/dates";
@@ -53,38 +54,33 @@ const saved = Astro.url.searchParams.has("saved");
       {saved && <div class="alert alert--success">Zapisano ustawienia.</div>}
 
       <form method="post" class="settings-form">
-        <div class="field">
-          <label class="field-label" for="vacation_limit">Limit urlopu (dni)</label>
-          <input
-            type="number"
-            id="vacation_limit"
-            name="vacation_limit"
-            class="field-input"
-            value={Math.trunc(Number(config.vacation_limit))}
-            min="0"
-            max="100"
-            step="1"
-          />
-          <span class="field-hint">Ustawowy limit na rok (zwykle 26 dni)</span>
-        </div>
+        <Field
+          label="Limit urlopu (dni)"
+          type="number"
+          id="vacation_limit"
+          name="vacation_limit"
+          value={Math.trunc(Number(config.vacation_limit))}
+          min="0"
+          max="100"
+          step="1"
+          hint="Ustawowy limit na rok (zwykle 26 dni)"
+        />
 
-        <div class="field">
-          <label class="field-label" for="vacation_carried_over">
+        <Field
+          type="number"
+          id="vacation_carried_over"
+          name="vacation_carried_over"
+          value={Math.trunc(carriedOver)}
+          min="0"
+          max="50"
+          step="1"
+          hint="Ustaw ręcznie niewykorzystane dni z poprzedniego roku"
+        >
+          <Fragment slot="label">
             <Icon name="move_down" size={16} />
             Dni przeniesione z {year - 1}
-          </label>
-          <input
-            type="number"
-            id="vacation_carried_over"
-            name="vacation_carried_over"
-            class="field-input"
-            value={Math.trunc(carriedOver)}
-            min="0"
-            max="50"
-            step="1"
-          />
-          <span class="field-hint">Ustaw ręcznie niewykorzystane dni z poprzedniego roku</span>
-        </div>
+          </Fragment>
+        </Field>
 
         {
           carriedOver > 0 && (
@@ -96,20 +92,17 @@ const saved = Astro.url.searchParams.has("saved");
           )
         }
 
-        <div class="field">
-          <label class="field-label" for="ho_limit">Limit Home Office (dni)</label>
-          <input
-            type="number"
-            id="ho_limit"
-            name="ho_limit"
-            class="field-input"
-            value={Math.trunc(Number(config.ho_limit))}
-            min="0"
-            max="260"
-            step="1"
-          />
-          <span class="field-hint">HO nie przechodzi na kolejny rok</span>
-        </div>
+        <Field
+          label="Limit Home Office (dni)"
+          type="number"
+          id="ho_limit"
+          name="ho_limit"
+          value={Math.trunc(Number(config.ho_limit))}
+          min="0"
+          max="260"
+          step="1"
+          hint="HO nie przechodzi na kolejny rok"
+        />
 
         <button type="submit" class="btn btn-filled settings-submit">
           <Icon name="save" size={18} />

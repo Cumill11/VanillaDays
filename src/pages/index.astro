@@ -2,6 +2,7 @@
 import { env } from "cloudflare:workers";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Chip from "@/components/Chip.astro";
+import Field from "@/components/Field.astro";
 import Icon from "@/components/Icon.astro";
 import { getBalance, getRecentEntries, getStats, getWarnings } from "@/lib/db";
 import { fmtDatePl, fmtDays, parseYear, yearContext } from "@/lib/dates";
@@ -113,40 +114,40 @@ const back = `/?year=${year}`;
           <input type="hidden" name="type" data-overtime-type />
           <input type="hidden" name="next" value={back} />
           <div class="overtime-form-row">
-            <div class="field overtime-field overtime-field--date">
-              <label class="field-label field-label--compact" for="ot-date">Data</label>
-              <input
-                type="date"
-                id="ot-date"
-                name="date"
-                class="field-input field-input--sm"
-                data-today
-                required
-              />
-            </div>
-            <div class="field overtime-field overtime-field--hours">
-              <label class="field-label field-label--compact" for="ot-hours">Godziny</label>
-              <input
-                type="number"
-                id="ot-hours"
-                name="hours"
-                step="0.5"
-                min="0.5"
-                class="field-input field-input--sm"
-                placeholder="np. 4"
-                required
-              />
-            </div>
-            <div class="field overtime-field overtime-field--notes">
-              <label class="field-label field-label--compact" for="ot-notes">Notatka</label>
-              <input
-                type="text"
-                id="ot-notes"
-                name="notes"
-                class="field-input field-input--sm"
-                placeholder="opcjonalnie"
-              />
-            </div>
+            <Field
+              label="Data"
+              type="date"
+              id="ot-date"
+              name="date"
+              data-today=""
+              required
+              class="overtime-field overtime-field--date"
+              labelClass="field-label--compact"
+              inputClass="field-input--sm"
+            />
+            <Field
+              label="Godziny"
+              type="number"
+              id="ot-hours"
+              name="hours"
+              step="0.5"
+              min="0.5"
+              placeholder="np. 4"
+              required
+              class="overtime-field overtime-field--hours"
+              labelClass="field-label--compact"
+              inputClass="field-input--sm"
+            />
+            <Field
+              label="Notatka"
+              type="text"
+              id="ot-notes"
+              name="notes"
+              placeholder="opcjonalnie"
+              class="overtime-field overtime-field--notes"
+              labelClass="field-label--compact"
+              inputClass="field-input--sm"
+            />
             <button type="submit" class="btn btn-filled btn-sm overtime-submit">Zapisz</button>
           </div>
         </form>

@@ -1,0 +1,58 @@
+---
+/**
+ * Pole formularza: etykieta, kontrolka i opcjonalna podpowiedź.
+ *
+ * Bez slotu renderuje `<input>`, a nadmiarowe propsy trafiają na niego bez
+ * zmian. Slot domyślny obsługuje `<select>` i `<textarea>`, slot `label` —
+ * etykiety z ikoną. `wrapperAttrs` idzie na `.field`, bo pola pokazywane
+ * warunkowo w oknie wpisu chowają cały blok, nie samą kontrolkę.
+ *
+ * Spacja przed „(opcjonalnie)” jest wypisana jawnie: `.field-optional` nie ma
+ * marginesu, więc bez niej etykieta skleiłaby się z dopiskiem.
+ */
+interface Props {
+  label?: string;
+  optional?: boolean;
+  hint?: string;
+  id?: string;
+  class?: string;
+  labelClass?: string;
+  inputClass?: string;
+  wrapperAttrs?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+const {
+  label,
+  optional,
+  hint,
+  id,
+  class: extraClass,
+  labelClass,
+  inputClass,
+  wrapperAttrs = {},
+  ...control
+} = Astro.props;
+---
+
+<div class:list={["field", extraClass]} {...wrapperAttrs}>
+  <label class:list={["field-label", labelClass]} for={id}>
+    {Astro.slots.has("label") ? <slot name="label" /> : label}
+    {
+      optional && (
+        <>
+          {" "}
+          <span class="field-optional">(opcjonalnie)</span>
+        </>
+      )
+    }
+  </label>
+  {
+    Astro.slots.has("default") ? (
+      <slot />
+    ) : (
+      <input id={id} class:list={["field-input", inputClass]} {...control} />
+    )
+  }
+  {hint && <span class="field-hint">{hint}</span>}
+</div>

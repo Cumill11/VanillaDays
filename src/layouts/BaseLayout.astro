@@ -3,6 +3,7 @@ import "@/styles/style.css";
 // ?url daje plikowi nazwę z hashem treści, więc przeglądarka nie poda starej
 // wersji z cache po wdrożeniu zmian.
 import appUrl from "@/scripts/app.js?url";
+import Field from "@/components/Field.astro";
 import Icon from "@/components/Icon.astro";
 
 interface Props {
@@ -55,6 +56,8 @@ const OKOL_REASONS = [
     <title>{title}</title>
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/svg+xml" href="/static/images/logo.svg" />
+    <link rel="icon" sizes="any" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#141218" />
   </head>
   <body>
@@ -148,56 +151,47 @@ const OKOL_REASONS = [
             </div>
             <input type="hidden" name="type" value="vacation" data-entry-type-input />
 
-            <div class="field">
-              <label class="field-label" for="entry-date">Data</label>
-              <input
-                type="date"
-                id="entry-date"
-                name="date"
-                class="field-input"
-                data-entry-date
-                required
-              />
-            </div>
+            <Field
+              label="Data"
+              type="date"
+              id="entry-date"
+              name="date"
+              data-entry-date=""
+              required
+            />
 
-            <div class="field" data-entry-extra="okolicznosciowy" hidden>
-              <label class="field-label" for="entry-okol">Powód urlopu okolicznościowego</label>
+            <Field
+              label="Powód urlopu okolicznościowego"
+              id="entry-okol"
+              wrapperAttrs={{ "data-entry-extra": "okolicznosciowy", hidden: true }}
+            >
               <select name="okol_reason" id="entry-okol" class="field-input">
                 <option value="">— wybierz powód (opcjonalnie) —</option>
                 {OKOL_REASONS.map((reason) => <option value={reason}>{reason}</option>)}
               </select>
-            </div>
+            </Field>
 
-            <div class="field" data-entry-extra="l4" hidden>
-              <label class="field-label" for="entry-l4">
-                Numer serii ZUS <span class="field-optional">(opcjonalnie)</span>
-              </label>
-              <input
-                type="text"
-                id="entry-l4"
-                name="l4_number"
-                class="field-input"
-                placeholder="np. ZLA/2025/XXXXX"
-              />
-            </div>
+            <Field
+              label="Numer serii ZUS"
+              optional
+              type="text"
+              id="entry-l4"
+              name="l4_number"
+              placeholder="np. ZLA/2025/XXXXX"
+              wrapperAttrs={{ "data-entry-extra": "l4", hidden: true }}
+            />
 
-            <div class="field" data-entry-extra="za_swieto" hidden>
-              <label class="field-label" for="entry-za">
-                Za które święto <span class="field-optional">(opcjonalnie)</span>
-              </label>
-              <input
-                type="text"
-                id="entry-za"
-                name="za_swieto_day"
-                class="field-input"
-                placeholder="np. Boże Narodzenie 25.12"
-              />
-            </div>
+            <Field
+              label="Za które święto"
+              optional
+              type="text"
+              id="entry-za"
+              name="za_swieto_day"
+              placeholder="np. Boże Narodzenie 25.12"
+              wrapperAttrs={{ "data-entry-extra": "za_swieto", hidden: true }}
+            />
 
-            <div class="field">
-              <label class="field-label" for="entry-notes">
-                Notatka <span class="field-optional">(opcjonalnie)</span>
-              </label>
+            <Field label="Notatka" optional id="entry-notes">
               <textarea
                 name="notes"
                 id="entry-notes"
@@ -205,7 +199,7 @@ const OKOL_REASONS = [
                 rows="2"
                 maxlength="500"
                 data-entry-notes></textarea>
-            </div>
+            </Field>
 
             <div class="form-error" data-entry-form-error hidden></div>
 

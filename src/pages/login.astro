@@ -1,6 +1,7 @@
 ---
 import "@/styles/style.css";
 import { env } from "cloudflare:workers";
+import Field from "@/components/Field.astro";
 import Icon from "@/components/Icon.astro";
 import {
   createSession,
@@ -71,29 +72,23 @@ if (Astro.request.method === "POST") {
 
       <form method="post">
         <input type="hidden" name="next" value={nextUrl} />
-        <div class="field">
-          <label class="field-label" for="username">Nazwa użytkownika</label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            class="field-input"
-            autocomplete="username"
-            required
-            autofocus
-          />
-        </div>
-        <div class="field">
-          <label class="field-label" for="password">Hasło</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            class="field-input"
-            autocomplete="current-password"
-            required
-          />
-        </div>
+        <Field
+          label="Nazwa użytkownika"
+          type="text"
+          id="username"
+          name="username"
+          autocomplete="username"
+          required
+          autofocus
+        />
+        <Field
+          label="Hasło"
+          type="password"
+          id="password"
+          name="password"
+          autocomplete="current-password"
+          required
+        />
         <button type="submit" class="btn btn-filled login-submit">Zaloguj się</button>
       </form>
     </div>

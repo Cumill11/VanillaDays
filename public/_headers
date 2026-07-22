@@ -7,3 +7,8 @@
 # Nazwa pliku fontu jednoznacznie identyfikuje jego zawartość.
 /static/fonts/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Wyłącznik starego service workera musi docierać do przeglądarki w całości,
+# a nie z pośredniego cache — inaczej sprzątanie odwleka się o kolejną dobę.
+/sw.js
+  Cache-Control: no-cache

@@ -149,6 +149,23 @@ Z tego wynikają dwie rzeczy:
   wyciekiem danych.
 - **Nie ma R2.** Aplikacja nie przyjmuje plików, więc jedynym magazynem jest D1.
 
+## Stary service worker
+
+`public/sw.js` to wyłącznik, nie funkcja. Poprzednia wersja aplikacji rejestrowała
+service workera i został on w przeglądarkach, które ją odwiedzały — przechwytywał
+żądania i podawał nieaktualną stronę. Objaw: w zwykłym oknie układ rozjechany,
+w incognito poprawny, bo tryb prywatny nie uruchamia zarejestrowanych workerów.
+
+Zdalnie takiego workera nie da się usunąć. Przeglądarka musi pobrać nową wersję
+skryptu spod tego samego adresu, a ta się wyrejestrowuje i czyści swoje cache.
+Dopóki `/sw.js` zwracał 404, aktualizacja kończyła się niepowodzeniem i stary
+worker zostawał.
+
+Plik leży w `public/`, więc serwuje go warstwa zasobów bez uruchamiania Workera —
+nie przechodzi przez middleware i nie wymaga zalogowania.
+
+**Do usunięcia**, gdy w logach przestaną się pojawiać żądania o `/sw.js`.
+
 ## Funkcje
 
 - Pulpit: bilans urlopu, Home Office, urlopu okolicznościowego i nadgodzin
@@ -192,6 +209,12 @@ używa — logowanie opiera się na podpisanym ciasteczku, nie na magazynie sesj
 | `0001_initial.sql`             | schemat                                                           |
 | `0002_remove_users.sql`        | usuwa tabelę użytkowników po przejściu na jedno konto w sekretach |
 | `0003_drop_login_attempts.sql` | usuwa tabelę po wyłączonym limicie prób logowania                 |
+
+## Wyszukiwarki
+
+`public/robots.txt` blokuje całą aplikację (`Disallow: /`), a każda odpowiedź dostaje
+`X-Robots-Tag: noindex, nofollow` z middleware. Nie ma tu nic publicznego, więc nie ma
+też sitemapy — w odróżnieniu od portfolio i stories.
 
 ## Logi
 
