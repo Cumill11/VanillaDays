@@ -18,6 +18,12 @@
   "observability": {
     "enabled": true,
   },
+  "kv_namespaces": [
+    {
+      "binding": "SESSION",
+      "id": "6f9ef218cf27488891913d13fb0432a3",
+    },
+  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -26,7 +32,4 @@
       "migrations_dir": "migrations",
     },
   ],
-  "vars": {
-    "HTTPS_ONLY": "true",
-  },
 }

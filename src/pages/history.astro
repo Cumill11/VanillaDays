@@ -1,4 +1,5 @@
 ---
+import { actions } from "astro:actions";
 import { env } from "cloudflare:workers";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Chip from "@/components/Chip.astro";
@@ -6,6 +7,12 @@ import EntryTypeChip from "@/components/EntryTypeChip.astro";
 import Icon from "@/components/Icon.astro";
 import { getHistoryEntries, getHistoryOvertime } from "@/lib/db";
 import { fmtDatePl, fmtDays, MONTH_NAMES, parseYear, yearContext } from "@/lib/dates";
+
+const deleted =
+  Astro.getActionResult(actions.deleteEntry) ?? Astro.getActionResult(actions.deleteOvertime);
+if (deleted && !deleted.error) {
+  return Astro.redirect(Astro.request.headers.get("referer") || "/history", 303);
+}
 
 const year = parseYear(Astro.url.searchParams.get("year"));
 const ctx = yearContext(year);
@@ -27,7 +34,6 @@ const otBalance = otEarned - otTaken;
 const vacDays = entries.filter((entry) => entry.type === "vacation").length;
 const hoCount = entries.filter((entry) => entry.type === "home_office").length;
 
-const back = Astro.url.pathname + Astro.url.search;
 const fmtHours = (value: number) =>
   Number.isInteger(Number(value)) ? String(Math.trunc(Number(value))) : String(Number(value));
 
@@ -164,11 +170,11 @@ const TYPE_OPTIONS = [
                   </button>
                   <form
                     method="post"
-                    action={`/entries/${entry.id}/delete`}
+                    action={actions.deleteEntry}
                     class="chip-form"
                     data-confirm={`Usunąć wpis z dnia ${fmtDatePl(entry.date)}?`}
                   >
-                    <input type="hidden" name="next" value={back} />
+                    <input type="hidden" name="id" value={entry.id} />
                     <button type="submit" class="icon-btn icon-btn--delete" title="Usuń">
                       <Icon name="delete" />
                     </button>
@@ -249,11 +255,11 @@ const TYPE_OPTIONS = [
                 <td class="table-actions">
                   <form
                     method="post"
-                    action={`/overtime/${entry.id}/delete`}
+                    action={actions.deleteOvertime}
                     class="chip-form"
                     data-confirm={`Usunąć wpis nadgodzin z dnia ${fmtDatePl(entry.date)}?`}
                   >
-                    <input type="hidden" name="next" value={back} />
+                    <input type="hidden" name="id" value={entry.id} />
                     <button type="submit" class="icon-btn icon-btn--delete" title="Usuń">
                       <Icon name="delete" />
                     </button>

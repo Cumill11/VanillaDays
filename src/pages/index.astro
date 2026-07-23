@@ -1,4 +1,5 @@
 ---
+import { actions } from "astro:actions";
 import { env } from "cloudflare:workers";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Chip from "@/components/Chip.astro";
@@ -8,20 +9,24 @@ import { getBalance, getRecentEntries, getStats, getWarnings } from "@/lib/db";
 import { fmtDatePl, fmtDays, parseYear, yearContext } from "@/lib/dates";
 import { getLeaveTypeMeta } from "@/lib/leaveTypes";
 
+const otResult = Astro.getActionResult(actions.saveOvertime);
+if (otResult && !otResult.error) {
+  return Astro.redirect(Astro.request.headers.get("referer") || "/", 303);
+}
+
 const year = parseYear(Astro.url.searchParams.get("year"));
 const ctx = yearContext(year);
-// Trzy niezależne odczyty — równolegle, żeby nie sumować czasu oczekiwania.
-const [balance, stats, recent] = await Promise.all([
-  getBalance(env.DB, year),
-  getStats(env.DB, year),
-  getRecentEntries(env.DB, year),
-]);
+const balance = await getBalance(env.DB, year);
+const stats = await getStats(env.DB, year);
+const recent = await getRecentEntries(env.DB, year);
 const warnings = getWarnings(year, balance);
+if (otResult?.error) {
+  warnings.unshift(["error", "Nie udało się zapisać nadgodzin", otResult.error.message]);
+}
 
 const chartMax = Math.max(1, ...stats.map((m) => Math.max(m.vacation, m.home_office)));
 const hasChartData = stats.some((m) => m.vacation || m.home_office);
 const barHeight = (value: number) => `height:${Math.round((value / chartMax) * 100)}%`;
-const back = `/?year=${year}`;
 ---
 
 <BaseLayout
@@ -110,9 +115,8 @@ const back = `/?year=${year}`;
         </button>
       </div>
       <div class="overtime-form-wrap" data-overtime-form-wrap hidden>
-        <form action="/overtime/save" method="post">
+        <form method="post" action={actions.saveOvertime}>
           <input type="hidden" name="type" data-overtime-type />
-          <input type="hidden" name="next" value={back} />
           <div class="overtime-form-row">
             <Field
               label="Data"

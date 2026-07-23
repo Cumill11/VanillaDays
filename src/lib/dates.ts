@@ -40,26 +40,21 @@ export function parseISODate(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
-export function todayLocal(): Date {
-  return new Date();
-}
-
-export function parseYear(value: string | null | undefined, fallback?: number): number {
+export function parseYear(value: string | null | undefined): number {
   const parsed = Number.parseInt(value || "", 10);
-  const today = todayLocal();
-  if (!Number.isFinite(parsed)) return fallback ?? today.getFullYear();
-  return Math.max(2020, Math.min(parsed, today.getFullYear() + 2));
+  const current = new Date().getFullYear();
+  if (parsed >= 2020 && parsed <= current + 2) return parsed;
+  return current;
 }
 
 export function parseMonth(value: string | null | undefined): number {
   const parsed = Number.parseInt(value || "", 10);
-  const month =
-    Number.isFinite(parsed) && parsed >= 1 && parsed <= 12 ? parsed : todayLocal().getMonth() + 1;
-  return month;
+  if (parsed >= 1 && parsed <= 12) return parsed;
+  return new Date().getMonth() + 1;
 }
 
 export function yearContext(year: number) {
-  const today = todayLocal();
+  const today = new Date();
   const cy = today.getFullYear();
   return {
     year,
@@ -69,18 +64,12 @@ export function yearContext(year: number) {
   };
 }
 
-export function fmtDays(days: number, wpd = 8): string {
-  let full = Math.trunc(days);
-  const frac = days - full;
-  let hours = Math.round(frac * wpd * 2) / 2;
-  if (hours >= wpd) {
-    full += 1;
-    hours = 0;
-  }
-  const hStr = Number.isInteger(hours) ? String(hours) : String(hours);
+export function fmtDays(days: number): string {
+  const full = Math.trunc(days);
+  const hours = Math.round((days - full) * 8 * 2) / 2;
   if (hours === 0) return `${full} dni`;
-  if (full === 0) return `${hStr}h`;
-  return `${full} dni ${hStr}h`;
+  if (full === 0) return `${hours}h`;
+  return `${full} dni ${hours}h`;
 }
 
 export function fmtDatePl(date: string | Date | null | undefined): string {
@@ -92,12 +81,10 @@ export function fmtDatePl(date: string | Date | null | undefined): string {
 export function getCalendarDays(year: number, month: number): Date[] {
   const first = new Date(year, month - 1, 1);
   const last = new Date(year, month, 0);
-  const firstWeekday = (first.getDay() + 6) % 7;
-  const lastWeekday = (last.getDay() + 6) % 7;
   const start = new Date(first);
-  start.setDate(first.getDate() - firstWeekday);
+  start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
   const end = new Date(last);
-  end.setDate(last.getDate() + ((6 - lastWeekday) % 7));
+  end.setDate(last.getDate() + ((7 - last.getDay()) % 7));
 
   const days: Date[] = [];
   const cur = new Date(start);
@@ -133,21 +120,23 @@ export function addDays(d: Date, days: number): Date {
 }
 
 export function getPolishHolidays(year: number): Record<string, string> {
-  const e = easterDate(year);
-  const hols = new Map<Date, string>([
-    [new Date(year, 0, 1), "Nowy Rok"],
-    [new Date(year, 0, 6), "Trzech Króli"],
-    [e, "Wielkanoc"],
-    [addDays(e, 1), "Lany Poniedziałek"],
-    [new Date(year, 4, 1), "Święto Pracy"],
-    [new Date(year, 4, 3), "Święto Konstytucji"],
-    [addDays(e, 49), "Zielone Świątki"],
-    [addDays(e, 60), "Boże Ciało"],
-    [new Date(year, 7, 15), "Wniebowzięcie NMP"],
-    [new Date(year, 10, 1), "Wszyscy Święci"],
-    [new Date(year, 10, 11), "Niepodległość"],
-    [new Date(year, 11, 25), "Boże Narodzenie"],
-    [new Date(year, 11, 26), "2. dzień Bożego Narodzenia"],
-  ]);
-  return Object.fromEntries([...hols.entries()].map(([d, name]) => [isoDate(d), name]));
+  const easter = easterDate(year);
+  const holidays: Record<string, string> = {};
+  const add = (date: Date, name: string) => {
+    holidays[isoDate(date)] = name;
+  };
+  add(new Date(year, 0, 1), "Nowy Rok");
+  add(new Date(year, 0, 6), "Trzech Króli");
+  add(easter, "Wielkanoc");
+  add(addDays(easter, 1), "Lany Poniedziałek");
+  add(new Date(year, 4, 1), "Święto Pracy");
+  add(new Date(year, 4, 3), "Święto Konstytucji");
+  add(addDays(easter, 49), "Zielone Świątki");
+  add(addDays(easter, 60), "Boże Ciało");
+  add(new Date(year, 7, 15), "Wniebowzięcie NMP");
+  add(new Date(year, 10, 1), "Wszyscy Święci");
+  add(new Date(year, 10, 11), "Niepodległość");
+  add(new Date(year, 11, 25), "Boże Narodzenie");
+  add(new Date(year, 11, 26), "2. dzień Bożego Narodzenia");
+  return holidays;
 }

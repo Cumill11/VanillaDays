@@ -1,4 +1,5 @@
 ---
+import { actions } from "astro:actions";
 import { env } from "cloudflare:workers";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Field from "@/components/Field.astro";
@@ -9,34 +10,16 @@ import { fmtDays, parseYear, yearContext } from "@/lib/dates";
 const year = parseYear(Astro.url.searchParams.get("year"));
 const ctx = yearContext(year);
 
-function bounded(value: FormDataEntryValue | null, fallback: number, min: number, max: number) {
-  const parsed = Number(value ?? fallback);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.round(Math.max(min, Math.min(max, parsed)));
+const result = Astro.getActionResult(actions.saveSettings);
+if (result && !result.error) {
+  return Astro.redirect(`/settings?year=${result.data.year}&saved=1`, 303);
 }
-
-if (Astro.request.method === "POST") {
-  const form = await Astro.request.formData();
-  await getOrCreateConfig(env.DB, year);
-  await env.DB.prepare(
-    `UPDATE year_config
-     SET vacation_limit = ?, ho_limit = ?, vacation_carried_over = ?
-     WHERE year = ?`,
-  )
-    .bind(
-      bounded(form.get("vacation_limit"), 26, 0, 100),
-      bounded(form.get("ho_limit"), 24, 0, 260),
-      bounded(form.get("vacation_carried_over"), 0, 0, 50),
-      year,
-    )
-    .run();
-  return Astro.redirect(`/settings?year=${year}&saved=1`, 303);
-}
+const saved = Astro.url.searchParams.has("saved");
+const error = result?.error?.message || "";
 
 const config = await getOrCreateConfig(env.DB, year);
 const carriedOver = Number(config.vacation_carried_over);
 const vacTotal = Number(config.vacation_limit) + carriedOver;
-const saved = Astro.url.searchParams.has("saved");
 ---
 
 <BaseLayout
@@ -52,8 +35,10 @@ const saved = Astro.url.searchParams.has("saved");
       <div class="card-title">Limity dni</div>
 
       {saved && <div class="alert alert--success">Zapisano ustawienia.</div>}
+      {error && <div class="alert alert--error">{error}</div>}
 
-      <form method="post" class="settings-form">
+      <form method="post" action={actions.saveSettings} class="settings-form">
+        <input type="hidden" name="year" value={year} />
         <Field
           label="Limit urlopu (dni)"
           type="number"

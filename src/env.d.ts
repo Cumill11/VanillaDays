@@ -4,10 +4,8 @@
 declare namespace Cloudflare {
   interface Env {
     DB: D1Database;
-    SECRET_KEY: string;
     ADMIN_USERNAME?: string;
     ADMIN_PASSWORD?: string;
-    HTTPS_ONLY?: string;
   }
 }
 

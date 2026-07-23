@@ -1,14 +1,6 @@
-# Dotyczy wyłącznie plików statycznych — te nie uruchamiają Workera.
-# Nagłówki bezpieczeństwa dla stron HTML ustawia src/middleware.ts.
-
-/*
-  X-Content-Type-Options: nosniff
-
-# Nazwa pliku fontu jednoznacznie identyfikuje jego zawartość.
+# Fonty się nie zmieniają, więc mogą siedzieć w cache na długo
 /static/fonts/*
   Cache-Control: public, max-age=31536000, immutable
 
-# Wyłącznik starego service workera musi docierać do przeglądarki w całości,
-# a nie z pośredniego cache — inaczej sprzątanie odwleka się o kolejną dobę.
 /sw.js
   Cache-Control: no-cache

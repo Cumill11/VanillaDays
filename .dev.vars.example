@@ -1,12 +1,5 @@
-# Sekrety dla lokalnego dev (skopiuj do .dev.vars) i dla `wrangler secret put` na produkcji.
+# Skopiuj do .dev.vars i uzupełnij.
 
-# Klucz podpisujący cookie sesji. Wygeneruj: openssl rand -hex 32
-SECRET_KEY=
-
-# Dane logowania do panelu. Oba pola są wymagane — bez nich panel zwraca
-# „Logowanie nie jest skonfigurowane”.
+# Dane logowania
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=
-
-# Lokalnie po HTTP ustaw false. Na produkcji zostaje true (patrz vars w wrangler.jsonc).
-HTTPS_ONLY=false

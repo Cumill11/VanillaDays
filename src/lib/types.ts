@@ -29,8 +29,3 @@ export interface OvertimeEntry {
   notes: string | null;
   created_at: string;
 }
-
-export interface SessionData {
-  csrf: string;
-  exp: number;
-}

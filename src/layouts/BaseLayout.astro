@@ -1,8 +1,5 @@
 ---
 import "@/styles/style.css";
-// ?url daje plikowi nazwę z hashem treści, więc przeglądarka nie poda starej
-// wersji z cache po wdrożeniu zmian.
-import appUrl from "@/scripts/app.js?url";
 import Field from "@/components/Field.astro";
 import Icon from "@/components/Icon.astro";
 
@@ -132,7 +129,7 @@ const OKOL_REASONS = [
             </button>
           </div>
 
-          <form action="/entries/save" method="post" data-entry-form>
+          <form method="post" data-entry-form>
             <input type="hidden" name="id" data-entry-id />
 
             <div class="toggle-group toggle-group--6">
@@ -215,6 +212,6 @@ const OKOL_REASONS = [
       </div>
     </div>
 
-    <script src={appUrl} defer is:inline></script>
+    <script src="../scripts/app.js"></script>
   </body>
 </html>

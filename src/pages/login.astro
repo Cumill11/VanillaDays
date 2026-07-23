@@ -3,39 +3,21 @@ import "@/styles/style.css";
 import { env } from "cloudflare:workers";
 import Field from "@/components/Field.astro";
 import Icon from "@/components/Icon.astro";
-import {
-  createSession,
-  isHttpsOnly,
-  passwordMatches,
-  safeNext,
-  setSessionCookie,
-} from "@/lib/auth";
 
 if (Astro.locals.authenticated) return Astro.redirect("/", 303);
 
 let error = "";
-let nextUrl = safeNext(Astro.url.searchParams.get("next"));
 
 if (Astro.request.method === "POST") {
   const form = await Astro.request.formData();
-  nextUrl = safeNext(String(form.get("next") || ""));
   const username = String(form.get("username") || "").trim();
   const password = String(form.get("password") || "");
-  const expectedUser = String(env.ADMIN_USERNAME || "").trim();
-  const expectedPassword = String(env.ADMIN_PASSWORD || "");
 
-  if (!expectedUser || !expectedPassword) {
-    error = "Logowanie nie jest skonfigurowane.";
-  } else if (
-    passwordMatches(username, expectedUser) &&
-    passwordMatches(password, expectedPassword)
-  ) {
-    const headers = new Headers({ Location: nextUrl });
-    setSessionCookie(headers, await createSession(env.SECRET_KEY), isHttpsOnly(env.HTTPS_ONLY));
-    return new Response(null, { status: 303, headers });
-  } else {
-    error = "Nieprawidłowa nazwa użytkownika lub hasło.";
+  if (env.ADMIN_PASSWORD && username === env.ADMIN_USERNAME && password === env.ADMIN_PASSWORD) {
+    Astro.session?.set("user", "admin");
+    return Astro.redirect("/", 303);
   }
+  error = "Nieprawidłowa nazwa użytkownika lub hasło.";
 }
 ---
 
@@ -73,7 +55,6 @@ if (Astro.request.method === "POST") {
       }
 
       <form method="post">
-        <input type="hidden" name="next" value={nextUrl} />
         <Field
           label="Nazwa użytkownika"
           type="text"

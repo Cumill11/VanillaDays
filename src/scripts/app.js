@@ -1,7 +1,4 @@
-/**
- * Interakcje klienta. Wszystko poza modalem wpisu działa na zwykłych
- * formularzach POST — tutaj zostaje tylko to, czego nie da się zrobić samym HTML.
- */
+import { actions } from "astro:actions";
 
 function initYearSelects() {
   document.querySelectorAll("[data-year-select]").forEach((select) => {
@@ -125,16 +122,12 @@ function initEntryModal() {
     spinner.hidden = false;
     errorBox.hidden = true;
     try {
-      const response = await fetch(form.action, {
-        method: "POST",
-        body: new FormData(form),
-        credentials: "same-origin",
-      });
-      if (response.ok) {
+      const { error } = await actions.saveEntry(new FormData(form));
+      if (!error) {
         window.location.reload();
         return;
       }
-      errorBox.textContent = (await response.text()) || "Wystąpił błąd. Spróbuj ponownie.";
+      errorBox.textContent = error.message || "Wystąpił błąd. Spróbuj ponownie.";
     } catch {
       errorBox.textContent = "Brak połączenia. Spróbuj ponownie.";
     }

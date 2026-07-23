@@ -1,25 +1,25 @@
 ---
+import { actions } from "astro:actions";
 import Icon from "@/components/Icon.astro";
 import { getLeaveTypeMeta } from "@/lib/leaveTypes";
 import type { LeaveEntry } from "@/lib/types";
 
 interface Props {
   entry: LeaveEntry;
-  back: string;
 }
 
-const { entry, back } = Astro.props;
+const { entry } = Astro.props;
 const date = entry.date.substring(0, 10);
 const meta = getLeaveTypeMeta(entry.type);
 ---
 
 <form
   method="post"
-  action={`/entries/${entry.id}/delete`}
+  action={actions.deleteEntry}
   class="chip-form"
   data-confirm={`Usunąć wpis z dnia ${date}?`}
 >
-  <input type="hidden" name="next" value={back} />
+  <input type="hidden" name="id" value={entry.id} />
   <button
     type="submit"
     class:list={["cal-chip", meta.calendarClass]}

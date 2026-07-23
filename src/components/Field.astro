@@ -1,15 +1,4 @@
 ---
-/**
- * Pole formularza: etykieta, kontrolka i opcjonalna podpowiedź.
- *
- * Bez slotu renderuje `<input>`, a nadmiarowe propsy trafiają na niego bez
- * zmian. Slot domyślny obsługuje `<select>` i `<textarea>`, slot `label` —
- * etykiety z ikoną. `wrapperAttrs` idzie na `.field`, bo pola pokazywane
- * warunkowo w oknie wpisu chowają cały blok, nie samą kontrolkę.
- *
- * Spacja przed „(opcjonalnie)” jest wypisana jawnie: `.field-optional` nie ma
- * marginesu, więc bez niej etykieta skleiłaby się z dopiskiem.
- */
 interface Props {
   label?: string;
   optional?: boolean;

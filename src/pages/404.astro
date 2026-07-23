@@ -1,11 +1,24 @@
 ---
-import ErrorPage from "@/components/ErrorPage.astro";
+import "@/styles/style.css";
 
 Astro.response.status = 404;
 ---
 
-<ErrorPage
-  code={404}
-  title="Nie znaleziono strony"
-  message="Strona, której szukasz, nie istnieje lub została przeniesiona."
-/>
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404 – VanillaDays</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/static/images/logo.svg" />
+  </head>
+  <body class="login-page">
+    <div class="login-card error-card">
+      <p class="error-code">404</p>
+      <h1 class="error-title">Nie znaleziono strony</h1>
+      <p class="error-message">Strona, której szukasz, nie istnieje lub została przeniesiona.</p>
+      <a class="btn btn-filled" href="/">Wróć na pulpit</a>
+    </div>
+  </body>
+</html>

@@ -1,4 +1,5 @@
 ---
+import { actions } from "astro:actions";
 import { env } from "cloudflare:workers";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import CalendarLeaveChip from "@/components/CalendarLeaveChip.astro";
@@ -15,6 +16,12 @@ import {
 } from "@/lib/dates";
 import type { LeaveEntry, OvertimeEntry } from "@/lib/types";
 
+const deleted =
+  Astro.getActionResult(actions.deleteEntry) ?? Astro.getActionResult(actions.deleteOvertime);
+if (deleted && !deleted.error) {
+  return Astro.redirect(Astro.request.headers.get("referer") || "/calendar", 303);
+}
+
 const year = parseYear(Astro.url.searchParams.get("year"));
 const month = parseMonth(Astro.url.searchParams.get("month"));
 const ctx = yearContext(year);
@@ -24,7 +31,6 @@ const end = isoDate(days[days.length - 1]);
 const entries = await getEntriesBetween(env.DB, start, end);
 const overtime = await getOvertimeBetween(env.DB, start, end);
 const holidays = getPolishHolidays(year);
-const back = `/calendar?year=${year}&month=${month}`;
 
 const entriesByDate = new Map<string, LeaveEntry[]>();
 const overtimeByDate = new Map<string, OvertimeEntry[]>();
@@ -76,6 +82,7 @@ const fmtHours = (value: number) =>
         href={`/calendar?year=${ctx.today.getFullYear()}&month=${ctx.today.getMonth() + 1}`}
         class="icon-btn"
         title="Dzisiaj"
+        aria-label="Dzisiaj"
       >
         <Icon name="today" />
       </a>
@@ -127,16 +134,16 @@ const fmtHours = (value: number) =>
 
               <div class="cal-chips">
                 {firstOfType.map((entry) => (
-                  <CalendarLeaveChip entry={entry} back={back} />
+                  <CalendarLeaveChip entry={entry} />
                 ))}
                 {otDay.map((ot) => (
                   <form
                     method="post"
-                    action={`/overtime/${ot.id}/delete`}
+                    action={actions.deleteOvertime}
                     class="chip-form"
                     data-confirm={`Usunąć wpis nadgodzin z dnia ${dateStr}?`}
                   >
-                    <input type="hidden" name="next" value={back} />
+                    <input type="hidden" name="id" value={ot.id} />
                     <button
                       type="submit"
                       class={`cal-chip cal-chip--${ot.type === "earned" ? "ot-earned" : "ot-taken"}`}
