@@ -49,8 +49,27 @@ const nextMonth = month < 12 ? month + 1 : 1;
 const nextYear = month < 12 ? year : year + 1;
 
 const LEAVE_ORDER = ["vacation", "home_office", "okolicznosciowy", "bezplatny", "l4", "za_swieto"];
+const DAY_TINT: Record<string, string> = {
+  vacation: "vacation",
+  home_office: "ho",
+  okolicznosciowy: "okol",
+  bezplatny: "bezp",
+  l4: "l4",
+  za_swieto: "za_swieto",
+};
 const fmtHours = (value: number) =>
   Number.isInteger(Number(value)) ? String(Math.trunc(Number(value))) : String(Number(value));
+
+const legendTypes = [
+  { cls: "vacation", icon: "beach_access", label: "Urlop" },
+  { cls: "ho", icon: "home", label: "Home Office" },
+  { cls: "okol", icon: "celebration", label: "Okolicznościowy" },
+  { cls: "bezp", icon: "money_off", label: "Bezpłatny" },
+  { cls: "l4", icon: "medical_services", label: "L4" },
+  { cls: "za_swieto", icon: "event_repeat", label: "Za święto" },
+  { cls: "ot-earned", icon: "more_time", label: "Nadgodziny (+)" },
+  { cls: "ot-taken", icon: "schedule", label: "Odbiór godzin (−)" },
+] as const;
 ---
 
 <BaseLayout
@@ -108,6 +127,7 @@ const fmtHours = (value: number) =>
             dayEntries.find((entry) => entry.type === type),
           ).filter(Boolean) as LeaveEntry[];
           const primaryType = firstOfType[0]?.type ?? "";
+          const primaryTint = DAY_TINT[primaryType] ?? "";
 
           return (
             <div
@@ -119,7 +139,7 @@ const fmtHours = (value: number) =>
                   "cal-day--holiday": isHoliday,
                   "cal-day--weekend": isWeekend,
                   "cal-day--clickable": canAdd,
-                  [`cal-day--${primaryType}`]: Boolean(primaryType),
+                  [`cal-day--${primaryTint}`]: Boolean(primaryTint),
                 },
               ]}
               data-date={dateStr}
@@ -166,22 +186,40 @@ const fmtHours = (value: number) =>
     </div>
 
     <div class="cal-legend">
-      <span class="legend-item"><span class="legend-dot legend-dot--vacation"></span> Urlop</span>
-      <span class="legend-item"><span class="legend-dot legend-dot--ho"></span> HO</span>
-      <span class="legend-item"
-        ><span class="legend-dot legend-dot--okol"></span> Okolicznościowy</span
-      >
-      <span class="legend-item"><span class="legend-dot legend-dot--bezp"></span> Bezpłatny</span>
-      <span class="legend-item"><span class="legend-dot legend-dot--l4"></span> L4</span>
-      <span class="legend-item"><span class="legend-dot legend-dot--today"></span> Dzisiaj</span>
-      <span class="legend-item"><span class="legend-dot legend-dot--holiday"></span> Święto</span>
-      <span class="legend-item"><span class="legend-dot legend-dot--za"></span> Za święto</span>
-      <span class="legend-item"
-        ><span class="legend-dot legend-dot--ot-earned"></span> Nadgodziny</span
-      >
-      <span class="legend-item"><span class="legend-dot legend-dot--ot-taken"></span> Odebrane</span
-      >
-      <span class="legend-hint">Kliknij wolny dzień = dodaj &nbsp;·&nbsp; kliknij wpis = usuń</span>
+      <div class="legend-block">
+        <span class="legend-title">Rodzaje wpisów</span>
+        <ul class="legend-grid">
+          {
+            legendTypes.map((item) => (
+              <li class="legend-item">
+                <span class:list={["legend-swatch", `cal-chip--${item.cls}`]}>
+                  <Icon name={item.icon} size={13} />
+                </span>
+                <span>{item.label}</span>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <div class="legend-block legend-block--markers">
+        <span class="legend-title">Oznaczenia dni</span>
+        <ul class="legend-grid">
+          <li class="legend-item">
+            <span class="legend-swatch legend-swatch--today"></span>
+            <span>Dzisiaj</span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-swatch legend-swatch--holiday"><Icon name="event" size={13} /></span>
+            <span>Święto / dzień wolny</span>
+          </li>
+        </ul>
+      </div>
+
+      <p class="legend-hint">
+        <Icon name="info" size={14} />
+        <span>Dotknij wolny dzień, aby dodać wpis · dotknij istniejący, aby go usunąć</span>
+      </p>
     </div>
   </div>
 </BaseLayout>
