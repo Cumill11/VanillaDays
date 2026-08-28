@@ -40,7 +40,7 @@ Potem migracje i deploy:
 npm run db:migrate:remote
 npm run deploy
 ```
-
+Podczas git push następuje automatyczne wdrożenie na Cloudflare
 ## Komendy
 
 | Komenda                     | Działanie                       |
