@@ -1,5 +1,5 @@
 import type { LeaveEntry, LeaveType, OvertimeEntry, YearConfig } from "./types";
-import { fmtDays, isoDate, MONTH_SHORT } from "./dates";
+import { fmtDays, isoDate, MONTH_SHORT, nowInPoland } from "./dates";
 
 const OKOL_LIMIT = 2;
 
@@ -25,25 +25,27 @@ export async function getOrCreateConfig(db: D1Database, year: number): Promise<Y
 }
 
 export async function getBalance(db: D1Database, year: number) {
-  const cfg = await getOrCreateConfig(db, year);
   const start = `${year}-01-01`;
   const end = `${year}-12-31`;
 
-  const counts: Record<string, number> = {};
-  const leaveRows = await db
-    .prepare(
-      "SELECT type, COUNT(*) AS days FROM leave_entries WHERE date >= ? AND date <= ? GROUP BY type",
-    )
-    .bind(start, end)
-    .all<{ type: string; days: number }>();
-  for (const row of leaveRows.results || []) counts[row.type] = Number(row.days);
+  const [cfg, leaveRows, otRows] = await Promise.all([
+    getOrCreateConfig(db, year),
+    db
+      .prepare(
+        "SELECT type, COUNT(*) AS days FROM leave_entries WHERE date >= ? AND date <= ? GROUP BY type",
+      )
+      .bind(start, end)
+      .all<{ type: string; days: number }>(),
+    db
+      .prepare(
+        "SELECT type, SUM(hours) AS hours FROM overtime_log WHERE date >= ? AND date <= ? GROUP BY type",
+      )
+      .bind(start, end)
+      .all<{ type: string; hours: number }>(),
+  ]);
 
-  const otRows = await db
-    .prepare(
-      "SELECT type, SUM(hours) AS hours FROM overtime_log WHERE date >= ? AND date <= ? GROUP BY type",
-    )
-    .bind(start, end)
-    .all<{ type: string; hours: number }>();
+  const counts: Record<string, number> = {};
+  for (const row of leaveRows.results || []) counts[row.type] = Number(row.days);
   const overtime: Record<string, number> = {};
   for (const row of otRows.results || []) overtime[row.type] = Number(row.hours);
 
@@ -180,12 +182,12 @@ export async function getHistoryOvertime(
 }
 
 export function getWarnings(year: number, balance: Awaited<ReturnType<typeof getBalance>>) {
-  const today = new Date();
+  const today = nowInPoland();
   const warns: [string, string, string][] = [];
   const vacRem = balance.vacation.remaining;
   const hoRem = balance.home_office.remaining;
 
-  if (vacRem === 0) {
+  if (vacRem <= 0) {
     warns.push(["error", "Urlop wyczerpany", "Nie masz już dni urlopu na ten rok."]);
   } else if (vacRem <= 3) {
     warns.push(["warning", `Zostało ${fmtDays(vacRem)} urlopu`, "Zaplanuj ostatnie dni urlopowe."]);
@@ -203,7 +205,7 @@ export function getWarnings(year: number, balance: Awaited<ReturnType<typeof get
     }
   }
 
-  if (hoRem === 0) {
+  if (hoRem <= 0) {
     warns.push([
       "warning",
       "Limit HO wyczerpany",
@@ -221,7 +223,7 @@ export function getWarnings(year: number, balance: Awaited<ReturnType<typeof get
     warns.push([
       "warning",
       "Limit urlopu okolicznościowego wyczerpany",
-      "Wykorzystałeś już 2 dni urlopu okolicznościowego w tym roku.",
+      `Wykorzystałeś już ${OKOL_LIMIT} dni urlopu okolicznościowego w tym roku.`,
     ]);
   }
 

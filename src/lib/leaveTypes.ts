@@ -1,73 +1,89 @@
-export const leaveTypeMeta: Record<
-  string,
+/**
+ * Rodzaje wpisów — jedyne źródło dla formularza, walidacji, list, kalendarza i CSV.
+ * `cls` to końcówka klas CSS: `chip--{cls}`, `cal-chip--{cls}`, `cal-day--{cls}`.
+ * Dopisując typ, rozszerz też CHECK w migracji `leave_entries.type`.
+ */
+export const LEAVE_TYPES = [
   {
-    icon: string;
-    className: string;
-    label: string;
-    shortLabel: string;
-    calendarClass: string;
-    calendarLabel: string;
-  }
-> = {
-  vacation: {
+    type: "vacation",
+    cls: "vacation",
     icon: "beach_access",
-    className: "chip--vacation",
     label: "Urlop",
+    fullLabel: "Urlop",
     shortLabel: "Urlop",
-    calendarClass: "cal-chip--vacation",
     calendarLabel: "URL",
+    placeholder: "np. urlop wypoczynkowy, wyjazd…",
   },
-  home_office: {
+  {
+    type: "home_office",
+    cls: "ho",
     icon: "home",
-    className: "chip--ho",
     label: "Home Office",
+    fullLabel: "Home Office",
     shortLabel: "HO",
-    calendarClass: "cal-chip--ho",
     calendarLabel: "HO",
+    placeholder: "np. praca zdalna, projekt X…",
   },
-  okolicznosciowy: {
+  {
+    type: "okolicznosciowy",
+    cls: "okol",
     icon: "celebration",
-    className: "chip--okol",
     label: "Okolicznościowy",
+    fullLabel: "Urlop okolicznościowy",
     shortLabel: "Okol.",
-    calendarClass: "cal-chip--okol",
     calendarLabel: "Okol.",
+    placeholder: "dodatkowe informacje…",
   },
-  bezplatny: {
+  {
+    type: "bezplatny",
+    cls: "bezp",
     icon: "money_off",
-    className: "chip--bezp",
     label: "Bezpłatny",
+    fullLabel: "Urlop bezpłatny",
     shortLabel: "Bezpł.",
-    calendarClass: "cal-chip--bezp",
     calendarLabel: "Bezpł.",
+    placeholder: "np. opieka nad dzieckiem, powód…",
   },
-  l4: {
+  {
+    type: "l4",
+    cls: "l4",
     icon: "medical_services",
-    className: "chip--l4",
     label: "L4",
+    fullLabel: "L4",
     shortLabel: "L4",
-    calendarClass: "cal-chip--l4",
     calendarLabel: "L4",
+    placeholder: "dodatkowe informacje…",
   },
-  za_swieto: {
+  {
+    type: "za_swieto",
+    cls: "za_swieto",
     icon: "event_repeat",
-    className: "chip--za",
     label: "Za święto",
+    fullLabel: "Urlop za święto",
     shortLabel: "Za św.",
-    calendarClass: "cal-chip--za_swieto",
     calendarLabel: "Za św.",
+    placeholder: "dodatkowe informacje…",
   },
-};
+] as const;
+
+export type LeaveType = (typeof LEAVE_TYPES)[number]["type"];
+type LeaveTypeMeta = (typeof LEAVE_TYPES)[number];
+
+export const LEAVE_TYPE_KEYS = LEAVE_TYPES.map((meta) => meta.type) as [LeaveType, ...LeaveType[]];
+
+const BY_TYPE = new Map<string, LeaveTypeMeta>(LEAVE_TYPES.map((meta) => [meta.type, meta]));
 
 export function getLeaveTypeMeta(type: string) {
   return (
-    leaveTypeMeta[type] || {
+    BY_TYPE.get(type) ?? {
+      type,
+      cls: "",
       icon: "event",
-      className: "",
       label: type,
+      fullLabel: type,
       shortLabel: type,
-      calendarClass: "",
       calendarLabel: type,
+      placeholder: "",
     }
   );
 }

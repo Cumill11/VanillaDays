@@ -1,5 +1,6 @@
-export type LeaveType =
-  "vacation" | "home_office" | "okolicznosciowy" | "bezplatny" | "l4" | "za_swieto";
+import type { LeaveType } from "./leaveTypes";
+
+export type { LeaveType };
 export type OvertimeType = "earned" | "taken";
 
 export interface YearConfig {
@@ -8,7 +9,6 @@ export interface YearConfig {
   vacation_limit: number;
   ho_limit: number;
   vacation_carried_over: number;
-  overtime_balance: number;
   created_at: string;
 }
 

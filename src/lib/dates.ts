@@ -31,6 +31,27 @@ export const WEEKDAY_SHORT = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nie"];
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+/**
+ * Bieżąca data i godzina w Polsce. Worker działa w UTC, więc samo `new Date()`
+ * między północą a 2:00 dawałoby jeszcze wczorajszy dzień.
+ */
+export function nowInPoland(): Date {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Warsaw",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(new Date())
+      .map((part) => [part.type, part.value]),
+  );
+  return new Date(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute);
+}
+
 export function isoDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
@@ -42,7 +63,7 @@ export function parseISODate(s: string): Date {
 
 export function parseYear(value: string | null | undefined): number {
   const parsed = Number.parseInt(value || "", 10);
-  const current = new Date().getFullYear();
+  const current = nowInPoland().getFullYear();
   if (parsed >= 2020 && parsed <= current + 2) return parsed;
   return current;
 }
@@ -50,11 +71,17 @@ export function parseYear(value: string | null | undefined): number {
 export function parseMonth(value: string | null | undefined): number {
   const parsed = Number.parseInt(value || "", 10);
   if (parsed >= 1 && parsed <= 12) return parsed;
-  return new Date().getMonth() + 1;
+  return nowInPoland().getMonth() + 1;
+}
+
+/** Miesiąc z filtra albo null („wszystkie miesiące”). */
+export function parseOptionalMonth(value: string | null | undefined): number | null {
+  const parsed = Number.parseInt(value || "", 10);
+  return parsed >= 1 && parsed <= 12 ? parsed : null;
 }
 
 export function yearContext(year: number) {
-  const today = new Date();
+  const today = nowInPoland();
   const cy = today.getFullYear();
   return {
     year,
@@ -70,6 +97,11 @@ export function fmtDays(days: number): string {
   if (hours === 0) return `${full} dni`;
   if (full === 0) return `${hours}h`;
   return `${full} dni ${hours}h`;
+}
+
+/** Godziny bez zbędnych zer, z połówkami: 4 → "4", 3.5 → "3.5". */
+export function fmtHours(hours: number): string {
+  return String(Math.round(Number(hours) * 100) / 100);
 }
 
 export function fmtDatePl(date: string | Date | null | undefined): string {

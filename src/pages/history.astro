@@ -6,7 +6,16 @@ import Chip from "@/components/Chip.astro";
 import EntryTypeChip from "@/components/EntryTypeChip.astro";
 import Icon from "@/components/Icon.astro";
 import { getHistoryEntries, getHistoryOvertime } from "@/lib/db";
-import { fmtDatePl, fmtDays, MONTH_NAMES, parseYear, yearContext } from "@/lib/dates";
+import {
+  fmtDatePl,
+  fmtDays,
+  fmtHours,
+  MONTH_NAMES,
+  parseOptionalMonth,
+  parseYear,
+  yearContext,
+} from "@/lib/dates";
+import { LEAVE_TYPES } from "@/lib/leaveTypes";
 
 const deleted =
   Astro.getActionResult(actions.deleteEntry) ?? Astro.getActionResult(actions.deleteOvertime);
@@ -17,13 +26,13 @@ if (deleted && !deleted.error) {
 const year = parseYear(Astro.url.searchParams.get("year"));
 const ctx = yearContext(year);
 const typeFilter = Astro.url.searchParams.get("type") || "";
-const parsedMonth = Number.parseInt(Astro.url.searchParams.get("month") || "", 10);
-const monthNum =
-  Number.isFinite(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12 ? parsedMonth : null;
+const monthNum = parseOptionalMonth(Astro.url.searchParams.get("month"));
 const monthFilter = monthNum ? String(monthNum) : "";
 
-const entries = await getHistoryEntries(env.DB, year, typeFilter, monthNum);
-const otEntries = await getHistoryOvertime(env.DB, year, monthNum);
+const [entries, otEntries] = await Promise.all([
+  getHistoryEntries(env.DB, year, typeFilter, monthNum),
+  getHistoryOvertime(env.DB, year, monthNum),
+]);
 const otEarned = otEntries
   .filter((entry) => entry.type !== "taken")
   .reduce((sum, entry) => sum + Number(entry.hours), 0);
@@ -33,18 +42,6 @@ const otTaken = otEntries
 const otBalance = otEarned - otTaken;
 const vacDays = entries.filter((entry) => entry.type === "vacation").length;
 const hoCount = entries.filter((entry) => entry.type === "home_office").length;
-
-const fmtHours = (value: number) =>
-  Number.isInteger(Number(value)) ? String(Math.trunc(Number(value))) : String(Number(value));
-
-const TYPE_OPTIONS = [
-  ["vacation", "Urlop"],
-  ["home_office", "Home Office"],
-  ["okolicznosciowy", "Urlop okolicznościowy"],
-  ["bezplatny", "Urlop bezpłatny"],
-  ["l4", "L4"],
-  ["za_swieto", "Urlop za święto"],
-];
 ---
 
 <BaseLayout
@@ -71,9 +68,9 @@ const TYPE_OPTIONS = [
       >
         <option value="">Wszystkie typy</option>
         {
-          TYPE_OPTIONS.map(([value, label]) => (
-            <option value={value} selected={typeFilter === value}>
-              {label}
+          LEAVE_TYPES.map(({ type, fullLabel }) => (
+            <option value={type} selected={typeFilter === type}>
+              {fullLabel}
             </option>
           ))
         }
@@ -105,7 +102,7 @@ const TYPE_OPTIONS = [
 
       <div class="export-btns">
         <a
-          href={`/export/csv?year=${year}&type=${encodeURIComponent(typeFilter)}`}
+          href={`/export/csv?year=${year}&type=${encodeURIComponent(typeFilter)}&month=${monthFilter}`}
           class="btn btn-text btn-sm"
           title="Pobierz CSV"
         >
@@ -201,16 +198,16 @@ const TYPE_OPTIONS = [
           <div class="chip-row">
             {otEarned > 0 && (
               <Chip class="chip--ot" icon="more_time">
-                +{Math.trunc(otEarned)}h zarobione
+                +{fmtHours(otEarned)}h zarobione
               </Chip>
             )}
             {otTaken > 0 && (
               <Chip class="chip--ot-taken" icon="schedule">
-                -{Math.trunc(otTaken)}h odebrane
+                -{fmtHours(otTaken)}h odebrane
               </Chip>
             )}
             <Chip class={otBalance >= 0 ? "chip--ot" : "chip--bezp"}>
-              Saldo: {Math.trunc(otBalance)}h
+              Saldo: {fmtHours(otBalance)}h
             </Chip>
           </div>
         </div>

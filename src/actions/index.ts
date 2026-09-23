@@ -1,6 +1,7 @@
 import { ActionError, defineAction } from "astro:actions";
-import { z } from "astro:schema";
+import { z } from "astro/zod";
 import { env } from "cloudflare:workers";
+import { LEAVE_TYPE_KEYS } from "@/lib/leaveTypes";
 
 const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Nieprawidłowa data");
 
@@ -10,7 +11,7 @@ export const server = {
     input: z.object({
       id: z.string().optional(),
       date: dateField,
-      type: z.enum(["vacation", "home_office", "okolicznosciowy", "bezplatny", "l4", "za_swieto"]),
+      type: z.enum(LEAVE_TYPE_KEYS),
       okol_reason: z.string().optional(),
       l4_number: z.string().optional(),
       za_swieto_day: z.string().optional(),

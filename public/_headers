@@ -4,3 +4,7 @@
 
 /sw.js
   Cache-Control: no-cache
+
+# Pliki z hashem w nazwie (Vite) — nowa wersja dostaje nową nazwę, więc cache na rok
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

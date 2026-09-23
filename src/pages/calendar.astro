@@ -6,6 +6,7 @@ import CalendarLeaveChip from "@/components/CalendarLeaveChip.astro";
 import Icon from "@/components/Icon.astro";
 import { getEntriesBetween, getOvertimeBetween } from "@/lib/db";
 import {
+  fmtHours,
   getCalendarDays,
   getPolishHolidays,
   isoDate,
@@ -14,6 +15,7 @@ import {
   parseYear,
   yearContext,
 } from "@/lib/dates";
+import { LEAVE_TYPES } from "@/lib/leaveTypes";
 import type { LeaveEntry, OvertimeEntry } from "@/lib/types";
 
 const deleted =
@@ -28,8 +30,10 @@ const ctx = yearContext(year);
 const days = getCalendarDays(year, month);
 const start = isoDate(days[0]);
 const end = isoDate(days[days.length - 1]);
-const entries = await getEntriesBetween(env.DB, start, end);
-const overtime = await getOvertimeBetween(env.DB, start, end);
+const [entries, overtime] = await Promise.all([
+  getEntriesBetween(env.DB, start, end),
+  getOvertimeBetween(env.DB, start, end),
+]);
 const holidays = getPolishHolidays(year);
 
 const entriesByDate = new Map<string, LeaveEntry[]>();
@@ -48,28 +52,11 @@ const prevYear = month > 1 ? year : year - 1;
 const nextMonth = month < 12 ? month + 1 : 1;
 const nextYear = month < 12 ? year : year + 1;
 
-const LEAVE_ORDER = ["vacation", "home_office", "okolicznosciowy", "bezplatny", "l4", "za_swieto"];
-const DAY_TINT: Record<string, string> = {
-  vacation: "vacation",
-  home_office: "ho",
-  okolicznosciowy: "okol",
-  bezplatny: "bezp",
-  l4: "l4",
-  za_swieto: "za_swieto",
-};
-const fmtHours = (value: number) =>
-  Number.isInteger(Number(value)) ? String(Math.trunc(Number(value))) : String(Number(value));
-
 const legendTypes = [
-  { cls: "vacation", icon: "beach_access", label: "Urlop" },
-  { cls: "ho", icon: "home", label: "Home Office" },
-  { cls: "okol", icon: "celebration", label: "Okolicznościowy" },
-  { cls: "bezp", icon: "money_off", label: "Bezpłatny" },
-  { cls: "l4", icon: "medical_services", label: "L4" },
-  { cls: "za_swieto", icon: "event_repeat", label: "Za święto" },
+  ...LEAVE_TYPES.map(({ cls, icon, label }) => ({ cls, icon, label })),
   { cls: "ot-earned", icon: "more_time", label: "Nadgodziny (+)" },
   { cls: "ot-taken", icon: "schedule", label: "Odbiór godzin (−)" },
-] as const;
+];
 ---
 
 <BaseLayout
@@ -123,11 +110,10 @@ const legendTypes = [
           const isWeekend = day.getDay() === 0 || day.getDay() === 6;
           const isHoliday = dateStr in holidays;
           const canAdd = inMonth && !isWeekend && dayEntries.length === 0;
-          const firstOfType = LEAVE_ORDER.map((type) =>
+          const firstOfType = LEAVE_TYPES.map(({ type }) =>
             dayEntries.find((entry) => entry.type === type),
           ).filter(Boolean) as LeaveEntry[];
-          const primaryType = firstOfType[0]?.type ?? "";
-          const primaryTint = DAY_TINT[primaryType] ?? "";
+          const primaryTint = LEAVE_TYPES.find(({ type }) => type === firstOfType[0]?.type)?.cls;
 
           return (
             <div

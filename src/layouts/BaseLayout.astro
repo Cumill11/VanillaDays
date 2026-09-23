@@ -2,6 +2,7 @@
 import "@/styles/style.css";
 import Field from "@/components/Field.astro";
 import Icon from "@/components/Icon.astro";
+import { LEAVE_TYPES } from "@/lib/leaveTypes";
 
 interface Props {
   title: string;
@@ -23,15 +24,6 @@ const nav = [
   ],
   ["history", "history", "Historia", `/history?year=${year}`],
   ["settings", "settings", "Ustawienia", `/settings?year=${year}`],
-] as const;
-
-const ENTRY_TYPES = [
-  ["vacation", "beach_access", "Urlop"],
-  ["home_office", "home", "Home Office"],
-  ["okolicznosciowy", "celebration", "Okolicznościowy"],
-  ["bezplatny", "money_off", "Bezpłatny"],
-  ["l4", "medical_services", "L4"],
-  ["za_swieto", "event_repeat", "Za święto"],
 ] as const;
 
 const OKOL_REASONS = [
@@ -134,12 +126,13 @@ const OKOL_REASONS = [
 
             <div class="toggle-group toggle-group--6">
               {
-                ENTRY_TYPES.map(([type, icon, label], index) => (
+                LEAVE_TYPES.map(({ type, icon, label, placeholder }, index) => (
                   <button
                     type="button"
                     class:list={["toggle-btn", { active: index === 0 }]}
                     data-entry-type-button
                     data-entry-type={type}
+                    data-placeholder={placeholder}
                   >
                     <Icon name={icon} /> {label}
                   </button>

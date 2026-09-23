@@ -9,15 +9,26 @@ if (Astro.locals.authenticated) return Astro.redirect("/", 303);
 let error = "";
 
 if (Astro.request.method === "POST") {
+  // 5 prób na minutę z jednego IP (binding LOGIN_LIMITER w wrangler.jsonc).
+  const ip = Astro.request.headers.get("cf-connecting-ip") ?? "";
+  const limited = env.LOGIN_LIMITER && !(await env.LOGIN_LIMITER.limit({ key: ip })).success;
   const form = await Astro.request.formData();
   const username = String(form.get("username") || "").trim();
   const password = String(form.get("password") || "");
 
-  if (env.ADMIN_PASSWORD && username === env.ADMIN_USERNAME && password === env.ADMIN_PASSWORD) {
+  if (limited) {
+    error = "Za dużo prób logowania. Spróbuj ponownie za minutę.";
+  } else if (
+    env.ADMIN_PASSWORD &&
+    username === env.ADMIN_USERNAME &&
+    password === env.ADMIN_PASSWORD
+  ) {
+    await Astro.session?.regenerate();
     Astro.session?.set("user", "admin");
     return Astro.redirect("/", 303);
+  } else {
+    error = "Nieprawidłowa nazwa użytkownika lub hasło.";
   }
-  error = "Nieprawidłowa nazwa użytkownika lub hasło.";
 }
 ---
 

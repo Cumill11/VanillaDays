@@ -427,7 +427,7 @@ textarea {
   color: var(--l4);
   border-color: rgba(239, 154, 154, 0.3);
 }
-.chip--za {
+.chip--za_swieto {
   background: rgba(77, 208, 225, 0.15);
   color: var(--za);
   border-color: rgba(77, 208, 225, 0.3);

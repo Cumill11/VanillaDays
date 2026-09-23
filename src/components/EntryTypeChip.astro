@@ -12,6 +12,6 @@ const { type, short = false } = Astro.props;
 const meta = getLeaveTypeMeta(type);
 ---
 
-<Chip class={meta.className} icon={meta.icon}>
+<Chip class={`chip--${meta.cls}`} icon={meta.icon}>
   {short ? meta.shortLabel : meta.label}
 </Chip>

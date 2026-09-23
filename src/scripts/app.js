@@ -43,18 +43,10 @@ function initOvertimeToggle() {
     });
   });
   document.querySelectorAll("[data-today]").forEach((input) => {
-    if (!input.value) input.value = new Date().toISOString().slice(0, 10);
+    // sv-SE daje YYYY-MM-DD w strefie przeglądarki (toISOString byłoby w UTC).
+    if (!input.value) input.value = new Date().toLocaleDateString("sv-SE");
   });
 }
-
-const NOTES_PLACEHOLDER = {
-  vacation: "np. urlop wypoczynkowy, wyjazd…",
-  home_office: "np. praca zdalna, projekt X…",
-  okolicznosciowy: "dodatkowe informacje…",
-  bezplatny: "np. opieka nad dzieckiem, powód…",
-  l4: "dodatkowe informacje…",
-  za_swieto: "dodatkowe informacje…",
-};
 
 function initEntryModal() {
   const modal = document.querySelector("[data-entry-modal]");
@@ -74,12 +66,13 @@ function initEntryModal() {
   function setType(type) {
     typeInput.value = type;
     form.querySelectorAll("[data-entry-type-button]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.entryType === type);
+      const active = button.dataset.entryType === type;
+      button.classList.toggle("active", active);
+      if (active) notesInput.placeholder = button.dataset.placeholder || "";
     });
     form.querySelectorAll("[data-entry-extra]").forEach((field) => {
       field.hidden = field.dataset.entryExtra !== type;
     });
-    notesInput.placeholder = NOTES_PLACEHOLDER[type] || "";
   }
 
   function closeModal() {

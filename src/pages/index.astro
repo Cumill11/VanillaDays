@@ -6,7 +6,7 @@ import Chip from "@/components/Chip.astro";
 import Field from "@/components/Field.astro";
 import Icon from "@/components/Icon.astro";
 import { getBalance, getRecentEntries, getStats, getWarnings } from "@/lib/db";
-import { fmtDatePl, fmtDays, parseYear, yearContext } from "@/lib/dates";
+import { fmtDatePl, fmtDays, fmtHours, parseYear, yearContext } from "@/lib/dates";
 import { getLeaveTypeMeta } from "@/lib/leaveTypes";
 
 const otResult = Astro.getActionResult(actions.saveOvertime);
@@ -16,9 +16,11 @@ if (otResult && !otResult.error) {
 
 const year = parseYear(Astro.url.searchParams.get("year"));
 const ctx = yearContext(year);
-const balance = await getBalance(env.DB, year);
-const stats = await getStats(env.DB, year);
-const recent = await getRecentEntries(env.DB, year);
+const [balance, stats, recent] = await Promise.all([
+  getBalance(env.DB, year),
+  getStats(env.DB, year),
+  getRecentEntries(env.DB, year),
+]);
 const warnings = getWarnings(year, balance);
 if (otResult?.error) {
   warnings.unshift(["error", "Nie udało się zapisać nadgodzin", otResult.error.message]);
@@ -101,7 +103,7 @@ const barHeight = (value: number) => `height:${Math.round((value / chartMax) * 1
           },
         ]}
       >
-        {Math.trunc(balance.overtime_balance)}h
+        {fmtHours(balance.overtime_balance)}h
       </div>
       <div class="bc-sub">saldo nadgodzin</div>
       <div class="bc-footer bc-footer--compact">

@@ -22,7 +22,7 @@ const meta = getLeaveTypeMeta(entry.type);
   <input type="hidden" name="id" value={entry.id} />
   <button
     type="submit"
-    class:list={["cal-chip", meta.calendarClass]}
+    class:list={["cal-chip", `cal-chip--${meta.cls}`]}
     title={`${meta.label} — kliknij, aby usunąć`}
   >
     <Icon name={meta.icon} size={10} />{meta.calendarLabel}
