@@ -59,7 +59,6 @@ export async function getBalance(db: D1Database, year: number) {
 
   return {
     vacation: {
-      limit: Number(cfg.vacation_limit),
       carried_over: Number(cfg.vacation_carried_over),
       total: vacTotal,
       used: vacUsed,
@@ -97,8 +96,7 @@ export async function getStats(db: D1Database, year: number) {
     .bind(`${year}-01-01`, `${year}-12-31`)
     .all<{ month: number; type: LeaveType; days: number }>();
 
-  const monthly = MONTH_SHORT.map((label, i) => ({
-    month: i + 1,
+  const monthly = MONTH_SHORT.map((label) => ({
     label,
     vacation: 0,
     home_office: 0,

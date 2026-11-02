@@ -9,7 +9,6 @@
     "preview": "astro preview",
     "format": "prettier --write .",
     "deploy": "astro build && wrangler deploy",
-    "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply vanilladays --local",
     "db:migrate:remote": "wrangler d1 migrations apply vanilladays --remote"
   },

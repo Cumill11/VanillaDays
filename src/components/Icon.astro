@@ -12,16 +12,15 @@ import {
   CircleAlert,
   Clock,
   Download,
-  History,
   House,
   Info,
   LayoutDashboard,
-  LogOut,
   Minus,
   PartyPopper,
   Pencil,
   Plus,
   Printer,
+  RotateCcwClock,
   Save,
   Settings,
   Stethoscope,
@@ -48,10 +47,9 @@ const ICONS = {
   event: Calendar,
   event_busy: CalendarOff,
   event_repeat: CalendarSync,
-  history: History,
+  history: RotateCcwClock,
   home: House,
   info: Info,
-  logout: LogOut,
   medical_services: Stethoscope,
   money_off: BanknoteX,
   more_time: Timer,
@@ -65,7 +63,7 @@ const ICONS = {
   warning: TriangleAlert,
 } as const;
 
-export type IconName = keyof typeof ICONS;
+type IconName = keyof typeof ICONS;
 
 interface Props {
   name: IconName | string;

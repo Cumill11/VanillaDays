@@ -23,7 +23,6 @@
   --bg: #141218;
   --surface: #1d1b20;
   --surface-hi: #2b2930;
-  --surface-highest: #36343b;
 
   --on-surface: #e6e1e5;
   --on-surface-var: #cac4d0;
@@ -45,7 +44,6 @@
   --l4: #ef9a9a;
   --l4-bg: rgba(239, 154, 154, 0.18);
   --za: #4dd0e1;
-  --za-bg: rgba(77, 208, 225, 0.15);
 
   --error: #f2b8b5;
   --warning: #e6c77a;
@@ -53,7 +51,6 @@
 
   --r-sm: 8px;
   --r-md: 12px;
-  --r-lg: 16px;
   --r-xl: 20px;
   --r-full: 100px;
 
@@ -192,9 +189,6 @@ textarea {
   align-items: center;
   gap: 0.5rem;
   margin-left: auto;
-}
-.logout-form {
-  margin: 0;
 }
 .year-select {
   background: var(--surface-hi);
@@ -431,10 +425,6 @@ textarea {
   background: rgba(77, 208, 225, 0.15);
   color: var(--za);
   border-color: rgba(77, 208, 225, 0.3);
-}
-.chip--sm {
-  font-size: 0.65rem;
-  padding: 2px 8px;
 }
 
 /* Entry list (dashboard) */
@@ -821,11 +811,6 @@ textarea {
 .entry-date-bold {
   font-weight: 500;
 }
-.table-sub {
-  display: block;
-  font-size: 0.72rem;
-  color: var(--outline);
-}
 .table-notes {
   color: var(--on-surface-var);
   font-size: 0.8rem;
@@ -837,9 +822,8 @@ textarea {
   color: var(--outline);
 }
 .empty-state-icon {
-  font-size: 3rem;
   display: block;
-  margin-bottom: 0.75rem;
+  margin: 0 auto 0.75rem;
 }
 
 /* Settings */
@@ -850,10 +834,6 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-}
-.field-label-icon {
-  vertical-align: middle;
-  color: var(--primary);
 }
 .field-label--compact {
   font-size: 0.7rem;
@@ -871,20 +851,6 @@ textarea {
   border-radius: var(--r-md);
   font-size: 0.85rem;
   color: var(--primary);
-}
-.info-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  font-size: 0.875rem;
-  color: var(--on-surface-var);
-}
-.info-list li::before {
-  content: "·";
-  margin-right: 0.5rem;
-  color: var(--primary);
-  font-weight: 700;
 }
 .alert {
   padding: 0.75rem 1rem;
@@ -1057,9 +1023,6 @@ textarea.field-input {
     background var(--ease),
     color var(--ease);
   white-space: nowrap;
-}
-.toggle-btn--full {
-  grid-column: 1 / -1;
 }
 .toggle-btn.active {
   background: var(--surface-hi);
@@ -1244,11 +1207,6 @@ textarea.field-input {
   color: inherit;
   opacity: 0.85;
 }
-.warning-icon {
-  font-size: 1.1rem;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
 .warning-item--error {
   background: rgba(242, 184, 181, 0.12);
   border-color: rgba(242, 184, 181, 0.3);
@@ -1263,53 +1221,6 @@ textarea.field-input {
   background: rgba(208, 188, 255, 0.1);
   border-color: rgba(208, 188, 255, 0.25);
   color: var(--primary);
-}
-
-/* Login */
-.login-page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: var(--bg);
-}
-.login-card {
-  background: var(--surface);
-  border: 1px solid var(--outline);
-  border-radius: 16px;
-  padding: 2.5rem 2rem;
-  width: 100%;
-  max-width: 360px;
-}
-.login-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  justify-content: center;
-  margin-bottom: 2rem;
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: var(--on-surface);
-}
-.login-logo {
-  width: 2rem;
-  height: 2rem;
-}
-.login-error {
-  background: rgba(239, 83, 80, 0.12);
-  border: 1px solid rgba(239, 83, 80, 0.4);
-  color: #ef9a9a;
-  border-radius: 8px;
-  padding: 0.7rem 1rem;
-  font-size: 0.85rem;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.login-submit {
-  width: 100%;
-  margin-top: 1.25rem;
 }
 
 /* Calendar: holidays */
@@ -1395,10 +1306,6 @@ textarea.field-input {
     font-size: 16pt;
     font-weight: 700;
   }
-  .print-header p {
-    font-size: 10pt;
-    color: #666;
-  }
   .filter-summary {
     display: none;
   }
@@ -1416,9 +1323,6 @@ textarea.field-input {
   }
   .sidebar {
     display: none;
-  }
-  .drawer-overlay {
-    display: none !important;
   }
   .topbar {
     grid-column: 1;
@@ -1655,7 +1559,20 @@ textarea.field-input {
 }
 
 /* Strony błędów */
+.error-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--bg);
+}
 .error-card {
+  background: var(--surface);
+  border: 1px solid var(--outline);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 360px;
   text-align: center;
 }
 .error-code {

@@ -5,13 +5,12 @@ interface Props {
   class?: string;
   icon?: string;
   iconSize?: number;
-  title?: string;
 }
 
-const { class: className = "", icon, iconSize = 13, title } = Astro.props;
+const { class: className = "", icon, iconSize = 13 } = Astro.props;
 ---
 
-<span class:list={["chip", className]} title={title}>
+<span class:list={["chip", className]}>
   {icon && <Icon name={icon} size={iconSize} />}
   <slot />
 </span>

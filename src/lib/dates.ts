@@ -56,7 +56,7 @@ export function isoDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export function parseISODate(s: string): Date {
+function parseISODate(s: string): Date {
   const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d);
 }
@@ -80,11 +80,10 @@ export function parseOptionalMonth(value: string | null | undefined): number | n
   return parsed >= 1 && parsed <= 12 ? parsed : null;
 }
 
-export function yearContext(year: number) {
+export function yearContext() {
   const today = nowInPoland();
   const cy = today.getFullYear();
   return {
-    year,
     yearOptions: Array.from({ length: cy + 2 - 2023 }, (_, i) => 2023 + i),
     today,
     todayIso: isoDate(today),
@@ -104,9 +103,8 @@ export function fmtHours(hours: number): string {
   return String(Math.round(Number(hours) * 100) / 100);
 }
 
-export function fmtDatePl(date: string | Date | null | undefined): string {
-  if (!date) return "";
-  const d = typeof date === "string" ? parseISODate(date.substring(0, 10)) : date;
+export function fmtDatePl(date: string): string {
+  const d = parseISODate(date.substring(0, 10));
   return `${WEEKDAY_SHORT[(d.getDay() + 6) % 7]}, ${d.getDate()} ${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`;
 }
 
@@ -127,7 +125,7 @@ export function getCalendarDays(year: number, month: number): Date[] {
   return days;
 }
 
-export function easterDate(year: number): Date {
+function easterDate(year: number): Date {
   const a = year % 19;
   const b = Math.floor(year / 100);
   const c = year % 100;
@@ -145,7 +143,7 @@ export function easterDate(year: number): Date {
   return new Date(year, month - 1, day);
 }
 
-export function addDays(d: Date, days: number): Date {
+function addDays(d: Date, days: number): Date {
   const copy = new Date(d);
   copy.setDate(copy.getDate() + days);
   return copy;

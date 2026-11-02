@@ -15,7 +15,7 @@ if (otResult && !otResult.error) {
 }
 
 const year = parseYear(Astro.url.searchParams.get("year"));
-const ctx = yearContext(year);
+const ctx = yearContext();
 const [balance, stats, recent] = await Promise.all([
   getBalance(env.DB, year),
   getStats(env.DB, year),
@@ -127,7 +127,7 @@ const barHeight = (value: number) => `height:${Math.round((value / chartMax) * 1
               name="date"
               data-today=""
               required
-              class="overtime-field overtime-field--date"
+              class="overtime-field"
               labelClass="field-label--compact"
               inputClass="field-input--sm"
             />
@@ -140,7 +140,7 @@ const barHeight = (value: number) => `height:${Math.round((value / chartMax) * 1
               min="0.5"
               placeholder="np. 4"
               required
-              class="overtime-field overtime-field--hours"
+              class="overtime-field"
               labelClass="field-label--compact"
               inputClass="field-input--sm"
             />
@@ -255,7 +255,7 @@ const barHeight = (value: number) => `height:${Math.round((value / chartMax) * 1
     </div>
   </div>
 
-  <div class="card chart-card">
+  <div class="card">
     <div class="card-title">Rozkład miesięczny</div>
     {
       hasChartData ? (

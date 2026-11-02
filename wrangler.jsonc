@@ -18,26 +18,12 @@
   "observability": {
     "enabled": true,
   },
-  "kv_namespaces": [
-    {
-      "binding": "SESSION",
-      "id": "6f9ef218cf27488891913d13fb0432a3",
-    },
-  ],
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "vanilladays",
       "database_id": "0d0a5a66-aed6-47d7-9389-0cd5e7c28bc9",
       "migrations_dir": "migrations",
-    },
-  ],
-  // Limit prób logowania: 5 na minutę z jednego IP.
-  "ratelimits": [
-    {
-      "name": "LOGIN_LIMITER",
-      "namespace_id": "1103",
-      "simple": { "limit": 5, "period": 60 },
     },
   ],
 }

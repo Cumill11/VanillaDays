@@ -5,13 +5,12 @@ import type { LeaveType } from "../lib/types";
 
 interface Props {
   type: LeaveType | string;
-  short?: boolean;
 }
 
-const { type, short = false } = Astro.props;
+const { type } = Astro.props;
 const meta = getLeaveTypeMeta(type);
 ---
 
 <Chip class={`chip--${meta.cls}`} icon={meta.icon}>
-  {short ? meta.shortLabel : meta.label}
+  {meta.label}
 </Chip>

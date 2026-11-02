@@ -1,7 +1,7 @@
 import type { LeaveType } from "./leaveTypes";
 
 export type { LeaveType };
-export type OvertimeType = "earned" | "taken";
+type OvertimeType = "earned" | "taken";
 
 export interface YearConfig {
   id: number;

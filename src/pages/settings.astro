@@ -8,7 +8,7 @@ import { getOrCreateConfig } from "@/lib/db";
 import { fmtDays, parseYear, yearContext } from "@/lib/dates";
 
 const year = parseYear(Astro.url.searchParams.get("year"));
-const ctx = yearContext(year);
+const ctx = yearContext();
 
 const result = Astro.getActionResult(actions.saveSettings);
 if (result && !result.error) {

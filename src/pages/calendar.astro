@@ -13,6 +13,7 @@ import {
   MONTH_NAMES,
   parseMonth,
   parseYear,
+  WEEKDAY_SHORT,
   yearContext,
 } from "@/lib/dates";
 import { LEAVE_TYPES } from "@/lib/leaveTypes";
@@ -26,7 +27,7 @@ if (deleted && !deleted.error) {
 
 const year = parseYear(Astro.url.searchParams.get("year"));
 const month = parseMonth(Astro.url.searchParams.get("month"));
-const ctx = yearContext(year);
+const ctx = yearContext();
 const days = getCalendarDays(year, month);
 const start = isoDate(days[0]);
 const end = isoDate(days[days.length - 1]);
@@ -96,7 +97,7 @@ const legendTypes = [
 
     <div class="cal-grid">
       {
-        ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nie"].map((label, index) => (
+        WEEKDAY_SHORT.map((label, index) => (
           <div class:list={["cal-weekday", { "cal-weekday--weekend": index > 4 }]}>{label}</div>
         ))
       }
@@ -196,7 +197,9 @@ const legendTypes = [
             <span>Dzisiaj</span>
           </li>
           <li class="legend-item">
-            <span class="legend-swatch legend-swatch--holiday"><Icon name="event" size={13} /></span>
+            <span class="legend-swatch legend-swatch--holiday">
+              <Icon name="event" size={13} />
+            </span>
             <span>Święto / dzień wolny</span>
           </li>
         </ul>
